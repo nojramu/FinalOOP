@@ -1,0 +1,517 @@
+@page "/customer/feedback"
+@layout Layout.CustomerLayout
+@rendermode InteractiveServer
+@inject AppDbContext DbContext
+@inject test.Services.CurrentUserContext CurrentUser
+@inject NavigationManager Navigation
+@using test.Models
+
+<PageTitle>Feedback</PageTitle>
+
+<style>
+    .feedback-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        color: #fff;
+        width: 100%;
+    }
+
+    .feedback-header {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #004c91;
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        margin-bottom: 2rem;
+        width: 90%;
+        max-width: 1000px;
+    }
+
+    .feedback-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+
+    .feedback-form-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #004c91;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        width: 90%;
+        max-width: 1000px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .feedback-form-card .form-label {
+        color: #333;
+        font-weight: 600;
+    }
+
+    .feedback-form-card .bg-light {
+        background: rgba(248, 249, 250, 0.9) !important;
+        backdrop-filter: blur(5px);
+    }
+
+    .feedback-list-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #004c91;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        width: 90%;
+        max-width: 1000px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .feedback-list-card .bg-light {
+        background: rgba(248, 249, 250, 0.9) !important;
+        backdrop-filter: blur(5px);
+    }
+
+    .feedback-section-title {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #004c91;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        margin-bottom: 1.5rem;
+        width: 90%;
+        max-width: 1000px;
+    }
+
+    .feedback-section-title h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .alert {
+        border-radius: 8px;
+    }
+
+    .no-feedback {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #666;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        width: 90%;
+        max-width: 1000px;
+    }
+
+    @@media (max-width: 768px) {
+        .feedback-container {
+            padding: 1rem;
+        }
+
+        .feedback-form-card,
+        .feedback-list-card {
+            padding: 1.5rem;
+        }
+    }
+</style>
+
+<div class="feedback-container">
+    <div class="feedback-header">
+        <h2>Feedback</h2>
+    </div>
+
+    @if (currentUser == null)
+    {
+        <div class="feedback-form-card">
+            <div class="alert alert-warning">
+                Please log in to submit feedback.
+            </div>
+        </div>
+    }
+    else
+    {
+        @* Check if user has completed orders *@
+        @if (completedOrdersCount == 0)
+        {
+            <div class="feedback-form-card">
+                <div class="alert alert-info">
+                    <strong>No completed orders yet.</strong> You need to have at least one completed order before you can submit feedback.
+                    @if (debugInfo != null)
+                    {
+                        <br /><small class="text-muted">Debug: @debugInfo</small>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            @* Feedback Form *@
+            <div class="feedback-form-card">
+                <EditForm Model="@feedbackModel" OnValidSubmit="SubmitFeedback">
+                    <DataAnnotationsValidator />
+
+                    @* Full Name Display with Anonymous Option *@
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Full Name</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <span>@currentUser.FullName</span>
+                            <div class="form-check">
+                                <InputCheckbox id="isAnonymous" class="form-check-input" @bind-Value="feedbackModel.IsAnonymous" />
+                                <label class="form-check-label" for="isAnonymous">
+                                    Post anonymously
+                                </label>
+                            </div>
+                        </div>
+                        @if (feedbackModel.IsAnonymous)
+                        {
+                            <small class="text-muted">Your name will appear as: @GetAnonymousName(currentUser.FullName)</small>
+                        }
+                    </div>
+
+                    @* Star Rating *@
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Rating</label>
+                        <div class="d-flex align-items-center gap-2" style="font-size: 2rem; cursor: pointer;">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var starIndex = i;
+                                var isHighlighted = starIndex <= (hoveredRating > 0 ? hoveredRating : feedbackModel.Rating);
+                                <span @onclick="() => SetRating(starIndex)" 
+                                      @onmouseover="() => { hoveredRating = starIndex; StateHasChanged(); }" 
+                                      @onmouseout="() => { hoveredRating = 0; StateHasChanged(); }"
+                                      style="color: @(isHighlighted ? "#FFD700" : "#ccc"); transition: color 0.2s;">
+                                    ★
+                                </span>
+                            }
+                        </div>
+                        @if (feedbackModel.Rating > 0)
+                        {
+                            <small class="text-muted">Selected: @feedbackModel.Rating star(s)</small>
+                        }
+                        <ValidationMessage For="@(() => feedbackModel.Rating)" />
+                    </div>
+
+                    @* Comment *@
+                    <div class="mb-3">
+                        <label for="comment" class="form-label fw-bold">Add comment here...</label>
+                        <InputTextArea id="comment" class="form-control" rows="5" 
+                                     @bind-Value="feedbackModel.Comment" 
+                                     placeholder="Add comment here..." />
+                        <ValidationMessage For="@(() => feedbackModel.Comment)" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Post
+                    </button>
+                </EditForm>
+            </div>
+        }
+
+        @* Display All Feedbacks *@
+        <div class="feedback-section-title">
+            <h3>All Feedbacks</h3>
+        </div>
+
+        @if (feedbacks == null || !feedbacks.Any())
+        {
+            <div class="no-feedback">
+                <p class="mb-0">No feedbacks yet. Be the first to share your experience!</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var feedback in feedbacks.OrderByDescending(f => f.CreatedAt))
+            {
+                <div class="feedback-list-card">
+                    @* Name > Stars > Date&Time (on top) *@
+                    <div class="d-flex align-items-center gap-3 mb-2 flex-wrap">
+                        <span class="fw-bold">@feedback.DisplayName</span>
+                        <div style="color: #FFD700; font-size: 1.2rem;">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                <span>@(i <= feedback.Rating ? "★" : "☆")</span>
+                            }
+                        </div>
+                        <span class="text-muted small">@feedback.CreatedAt.ToString("MMM dd, yyyy hh:mm tt")</span>
+                    </div>
+                    
+                    @* Comment (below) *@
+                    <div class="mt-2">
+                        <p class="mb-0">@feedback.Comment</p>
+                    </div>
+
+                    @* Admin Reply (if exists) *@
+                    @if (!string.IsNullOrEmpty(feedback.AdminReply))
+                    {
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <strong>Admin Reply:</strong>
+                                @if (feedback.AdminReplyDate.HasValue)
+                                {
+                                    <span class="text-muted small">@feedback.AdminReplyDate.Value.ToString("MMM dd, yyyy hh:mm tt")</span>
+                                }
+                            </div>
+                            <p class="mb-0">@feedback.AdminReply</p>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    }
+</div>
+
+@implements IDisposable
+
+@code {
+    private User? currentUser;
+    private List<test.Models.Feedback>? feedbacks;
+    private FeedbackModel feedbackModel = new();
+    private int hoveredRating = 0;
+    private int completedOrdersCount = 0;
+    private string errorMessage = string.Empty;
+    private bool isSubmitting = false;
+    private System.Threading.Timer? refreshTimer;
+    private string? debugInfo = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        
+        // Set up timer to refresh feedbacks every 2 seconds
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadFeedbacks();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(2));
+    }
+
+    private async Task LoadData()
+    {
+        if (string.IsNullOrEmpty(CurrentUser.Username))
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        // Load current user
+        currentUser = await DbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Username == CurrentUser.Username);
+
+        if (currentUser != null)
+        {
+            feedbackModel.FullName = currentUser.FullName;
+            feedbackModel.Username = currentUser.Username;
+        }
+
+        // Count completed orders (case-insensitive check for both username and status)
+        var username = CurrentUser.Username?.ToLower();
+        var allOrders = await DbContext.Orders
+            .AsNoTracking()
+            .Where(o => (o.Username ?? "").ToLower() == (username ?? ""))
+            .ToListAsync();
+        
+        // Debug: show all order statuses
+        var statuses = allOrders.Select(o => $"'{o.Status}'").Distinct().ToList();
+        debugInfo = $"Found {allOrders.Count} order(s) with statuses: {string.Join(", ", statuses)}";
+        
+        completedOrdersCount = allOrders.Count(o => 
+            o.Status != null && 
+            o.Status.Trim().Equals("Completed", StringComparison.OrdinalIgnoreCase));
+
+        // Count existing feedbacks
+        var existingFeedbacksCount = await DbContext.Feedbacks
+            .AsNoTracking()
+            .CountAsync(f => f.Username == CurrentUser.Username);
+
+        // Check if user can post more feedbacks
+        if (existingFeedbacksCount >= completedOrdersCount)
+        {
+            // User has used all their feedback slots
+        }
+
+        await LoadFeedbacks();
+    }
+
+    private async Task LoadFeedbacks()
+    {
+        feedbacks = await DbContext.Feedbacks
+            .AsNoTracking()
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync();
+    }
+
+    private void SetRating(int rating)
+    {
+        feedbackModel.Rating = rating;
+        hoveredRating = 0; // Clear hover state after click
+        StateHasChanged(); // Force UI update
+    }
+
+    private string GetAnonymousName(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+            return fullName;
+
+        if (fullName.Length <= 2)
+            return fullName[0] + "***";
+
+        if (fullName.Length <= 3)
+            return fullName[0] + "**" + fullName[fullName.Length - 1];
+
+        // For names 4+ characters: first char + asterisks + last 2 chars
+        var asteriskCount = fullName.Length - 3;
+        return fullName[0] + new string('*', asteriskCount) + fullName.Substring(fullName.Length - 2);
+    }
+
+    private async Task SubmitFeedback()
+    {
+        if (currentUser == null || string.IsNullOrEmpty(CurrentUser.Username))
+        {
+            errorMessage = "Please log in to submit feedback.";
+            return;
+        }
+
+        // Check if user has completed orders (case-insensitive check for both username and status)
+        var usernameCheck = CurrentUser.Username?.ToLower();
+        var allOrdersCheck = await DbContext.Orders
+            .AsNoTracking()
+            .Where(o => (o.Username ?? "").ToLower() == (usernameCheck ?? ""))
+            .ToListAsync();
+        
+        completedOrdersCount = allOrdersCheck.Count(o => 
+            o.Status != null && 
+            o.Status.Trim().Equals("Completed", StringComparison.OrdinalIgnoreCase));
+
+        if (completedOrdersCount == 0)
+        {
+            errorMessage = "You need to have at least one completed order before you can submit feedback.";
+            return;
+        }
+
+        // Count existing feedbacks
+        var existingFeedbacksCount = await DbContext.Feedbacks
+            .AsNoTracking()
+            .CountAsync(f => f.Username == CurrentUser.Username);
+
+        // Check if user has used all their feedback slots
+        if (existingFeedbacksCount >= completedOrdersCount)
+        {
+            errorMessage = $"You can submit one feedback per completed order.";
+            return;
+        }
+
+        errorMessage = string.Empty;
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Validate required fields before saving
+            if (string.IsNullOrWhiteSpace(feedbackModel.FullName))
+            {
+                errorMessage = "Full name is required.";
+                isSubmitting = false;
+                StateHasChanged();
+                return;
+            }
+
+            if (feedbackModel.Rating < 1 || feedbackModel.Rating > 5)
+            {
+                errorMessage = "Please select a rating between 1 and 5 stars.";
+                isSubmitting = false;
+                StateHasChanged();
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(feedbackModel.Comment))
+            {
+                errorMessage = "Comment is required.";
+                isSubmitting = false;
+                StateHasChanged();
+                return;
+            }
+
+            var feedback = new test.Models.Feedback
+            {
+                Username = CurrentUser.Username,
+                FullName = feedbackModel.FullName.Trim(),
+                IsAnonymous = feedbackModel.IsAnonymous,
+                Rating = feedbackModel.Rating,
+                Comment = feedbackModel.Comment.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            DbContext.Feedbacks.Add(feedback);
+            await DbContext.SaveChangesAsync();
+
+            // Reset form
+            feedbackModel = new FeedbackModel
+            {
+                FullName = currentUser.FullName,
+                Username = currentUser.Username
+            };
+            hoveredRating = 0;
+
+            // Reload feedbacks
+            await LoadFeedbacks();
+        }
+        catch (Exception ex)
+        {
+            var innerMessage = ex.InnerException != null ? ex.InnerException.Message : "";
+            errorMessage = $"Failed to submit feedback: {ex.Message}" + 
+                          (string.IsNullOrEmpty(innerMessage) ? "" : $" (Inner: {innerMessage})");
+            Console.WriteLine($"Feedback submission error: {ex}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner exception: {ex.InnerException}");
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    public class FeedbackModel
+    {
+        public string? Username { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public bool IsAnonymous { get; set; } = false;
+
+        [Required(ErrorMessage = "Please select a rating")]
+        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5")]
+        public int Rating { get; set; } = 0;
+
+        [Required(ErrorMessage = "Comment is required")]
+        [StringLength(1000, ErrorMessage = "Comment cannot exceed 1000 characters")]
+        public string Comment { get; set; } = string.Empty;
+    }
+}

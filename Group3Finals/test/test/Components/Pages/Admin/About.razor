@@ -1,0 +1,170 @@
+@page "/admin/about"
+@layout Layout.AdminLayout
+
+<PageTitle>About Us</PageTitle>
+
+<div class="about-container">
+    <div class="about-header">
+        <h2>👥 About Us</h2>
+    </div>
+
+    <div class="about-description">
+        Welcome to our Water Station Online Appointment!
+
+        <p>
+            We are fully dedicated to serving you with high-quality water delivered to your home. Our objective is to keep you and your family hydrated with clean, healthy water while offering the convenience of home delivery. 
+
+            Customers can use the website to easily select the type and quantity of water they require, designate their preferred delivery time, and track their orders without having to visit the real shop. This website demonstrates our dedication to enhancing customer service, maintaining accessibility, and ensuring timely delivery of safe, high-quality drinking water.
+        </p>
+
+        <p>
+            We aim to make water refill services more convenient and efficient for both customers and business owners. Through this system, customers no longer need to personally visit the water station to pay or drop off empty gallons. At the same time, delivery riders can avoid unnecessary trips when no one is available at home or when the customer does not require a refill yet.
+        </p>
+
+        Thank you for selecting us as your reliable water supply partner!
+    </div>
+
+    <div class="about-header">
+        <h2>👤 Members</h2>
+    </div>
+
+    <table class="members-table">
+        <tr>
+            <th>Photo</th>
+            <th>Name</th>
+        </tr>
+        <tr>
+            <td><img src="/images/dwyane.jpg" /></td>
+            <td>Dela Cruz, Dwyane Allen F.</td>
+        </tr>
+        <tr>
+            <td><img src="/images/gungon.jpg" /></td>
+            <td>Gungon, John Andrew N.</td>
+        </tr>
+        <tr>
+            <td><img src="/images/steven.jpg" /></td>
+            <td>Natividad, Steven Zeddriq M.</td>
+        </tr>
+        <tr>
+            <td><img src="/images/roven.jpg" /></td>
+            <td>Respicio, Roven Jules B.</td>
+        </tr>
+        <tr>
+            <td><img src="/images/ting.jpg" /></td>
+            <td>Ting, Aljiemer A.</td>
+        </tr>
+        <tr>
+            <td><img src="/images/jilai.jpg" /></td>
+            <td>Tolentino, Angela D.</td>
+        </tr>
+    </table>
+</div>
+
+<style>
+.about-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    color: #fff;
+    width: 100%;
+}
+
+.about-header {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    color: #004c91;
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    margin-bottom: 2rem;
+    width: 90%;
+    max-width: 1000px;
+    text-align: center;
+}
+
+.about-header h2 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.about-description {
+    background: rgba(255,255,255,0.95);
+    color: #063970;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    width: 70%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    text-align: justify;
+    transition: transform 0.2s;
+    margin-bottom: 2rem;
+}
+
+.about-description p {
+    text-align: justify;
+    text-indent: 40px;
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+/* Members Table Styling */
+.members-table {
+    width: 70%;
+    border-collapse: collapse;
+    background: rgba(255,255,255,0.95);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    overflow: hidden;
+    margin-top: 0;
+}
+
+/* Table Header */
+.members-table thead {
+    background-color: rgba(248, 249, 250, 0.9);
+    color: #000;
+    text-align: center;
+}
+
+.members-table th {
+    padding: 1rem;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #000;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* Table Body */
+.members-table td {
+    padding: 1.2rem 2rem;
+    vertical-align: middle;
+    color: #063970;
+    font-size: 1.1rem;
+    line-height: 1.4;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+/* Equal width distribution */
+.members-table td:first-child {
+    width: 50%;
+    text-align: center;
+}
+
+.members-table td:last-child {
+    width: 50%;
+    text-align: center;
+    padding-left: 2rem; /* consistent spacing from image */
+}
+
+/* Image Styling */
+.members-table img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+</style>

@@ -1,0 +1,693 @@
+@page "/viewdatabase"
+@rendermode InteractiveServer
+@inject AppDbContext DbContext
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>View Database</PageTitle>
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>User Accounts Database</h2>
+                <div>
+                    <button class="btn btn-secondary me-2" @onclick="RefreshData">Refresh</button>
+                    <a href="/login" class="btn btn-outline-primary">Back to Login</a>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(actionMessage))
+            {
+                <div class="alert @actionMessageCss mb-4" role="alert">@actionMessage</div>
+            }
+
+            <div class="card shadow mb-4">
+                <div class="card-header bg-light">
+                    <strong>Create New User</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <input class="form-control" placeholder="Full Name" @bind="createModel.FullName" />
+                        </div>
+                        <div class="col-md-2">
+                            <input class="form-control" placeholder="Username" @bind="createModel.Username" />
+                        </div>
+                        <div class="col-md-3">
+                            <input class="form-control" placeholder="Email" @bind="createModel.Email" />
+                        </div>
+                        <div class="col-md-2">
+                            <input class="form-control" placeholder="Contact" @bind="createModel.ContactNumber" />
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select" @bind="createModel.Role">
+                                <option value="Customer">Customer</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <input class="form-control" placeholder="House No." @bind="createModel.HouseNo" />
+                        </div>
+                        <div class="col-md-3">
+                            <input class="form-control" placeholder="Street" @bind="createModel.Street" />
+                        </div>
+                        <div class="col-md-3">
+                            <input class="form-control" list="barangayOptions" placeholder="Barangay" @bind="createModel.Barangay" />
+                            <datalist id="barangayOptions">
+                                <option value="San Roque" />
+                                <option value="Tangos" />
+                                <option value="Daanghari" />
+                            </datalist>
+                        </div>
+                        <div class="col-md-2">
+                            <input class="form-control" type="password" placeholder="Password" @bind="createModel.Password" />
+                        </div>
+                        <div class="col-md-2 d-grid">
+                            <button class="btn btn-primary" @onclick="CreateUser" disabled="@isBusy">
+                                @(isBusy ? "Creating..." : "Create User")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (users == null || !users.Any())
+            {
+                <div class="alert alert-info">
+                    <h4>No users found</h4>
+                    <p>There are no registered users in the database yet.</p>
+                    <a href="/signup" class="btn btn-primary">Create First Account</a>
+                </div>
+            }
+            else
+            {
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Total Users: @users.Count</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Full Name</th>
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Contact Number</th>
+                                        <th>Address</th>
+                                        <th>Role</th>
+                                        <th>Created At</th>
+                                        <th style="width:170px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var user in users)
+                                    {
+                                        <tr>
+                                            <td>@user.Id</td>
+                                            <td>
+                                                @if (editingUserId == user.Id)
+                                                {
+                                                    <input class="form-control form-control-sm" @bind="editModel.FullName" />
+                                                }
+                                                else { @user.FullName }
+                                            </td>
+                                            <td>
+                                                @if (editingUserId == user.Id)
+                                                {
+                                                    <input class="form-control form-control-sm" @bind="editModel.Username" />
+                                                }
+                                                else { <strong>@user.Username</strong> }
+                                            </td>
+                                            <td>
+                                                @if (editingUserId == user.Id)
+                                                {
+                                                    <input class="form-control form-control-sm" @bind="editModel.Email" />
+                                                }
+                                                else { @user.Email }
+                                            </td>
+                                            <td>
+                                                @if (editingUserId == user.Id)
+                                                {
+                                                    <input class="form-control form-control-sm" @bind="editModel.ContactNumber" />
+                                                }
+                                                else { @user.ContactNumber }
+                                            </td>
+                                            <td>
+                                                @if (editingUserId == user.Id)
+                                                {
+                                                    <div class="d-flex gap-2">
+                                                        <input class="form-control form-control-sm" style="max-width:90px" placeholder="House No." @bind="editModel.HouseNo" />
+                                                        <input class="form-control form-control-sm" style="max-width:160px" placeholder="Street" @bind="editModel.Street" />
+                                                        <input class="form-control form-control-sm" style="max-width:140px" list="barangayOptions" placeholder="Barangay" @bind="editModel.Barangay" />
+                                                    </div>
+                                                }
+                                                else { @user.Address }
+                                            </td>
+                                            <td>
+                                                @if (editingUserId == user.Id)
+                                                {
+                                                    <select class="form-select form-select-sm" @bind="editModel.Role">
+                                                        <option value="Customer">Customer</option>
+                                                        <option value="Admin">Admin</option>
+                                                    </select>
+                                                }
+                                                else
+                                                {
+                                                    if (user.Role == "Admin")
+                                                    {
+                                                        <span class="badge bg-danger">@user.Role</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-primary">@user.Role</span>
+                                                    }
+                                                }
+                                            </td>
+                                            <td>@user.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                            <td>
+                                                @if (editingUserId == user.Id)
+                                                {
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-success" @onclick="(() => SaveEdit(user.Id))" disabled="@isBusy">Save</button>
+                                                        <button class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@isBusy">Cancel</button>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-primary" @onclick="(() => StartEdit(user))">Edit</button>
+                                                        <button class="btn btn-outline-danger" @onclick="(() => DeleteUser(user.Id))" disabled="@isBusy">Delete</button>
+                                                    </div>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow mt-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Orders: @orders.Count</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Customer</th>
+                                        <th>Username</th>
+                                        <th>Address</th>
+                                        <th>Option</th>
+                                        <th>Type</th>
+                                        <th>Qty</th>
+                                        <th>Payment</th>
+                                        <th>Total</th>
+                                        <th>Payment Status</th>
+                                        <th>Delivery Status</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Time Delivered</th>
+                                        <th style="width:170px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (orders.Any())
+                                    {
+                                        @foreach (var o in orders)
+                                        {
+                                            <tr>
+                                                <td>@o.Id</td>
+                                                <td>@o.CustomerName</td>
+                                                <td>@o.Username</td>
+                                                <td>@(o.HouseNo), @(o.Street), @(o.Barangay), Navotas City</td>
+                                                <td>@(o.PurchaseGallon ? "Purchase" : o.RefillGallon ? "Refill" : "-")</td>
+                                                <td>@o.Type</td>
+                                                <td>@o.Quantity</td>
+                                                <td>@o.PaymentMethod</td>
+                                                <td>₱@o.TotalPrice</td>
+                                                <td>
+                                                    @if (orderEditingId == o.Id)
+                                                    {
+                                                        <InputSelect class="form-select form-select-sm" @bind-Value="orderPaymentStatusEdit">
+                                                            <option value="Pending">pending</option>
+                                                            <option value="Cancelled">cancelled</option>
+                                                            <option value="Completed">completed</option>
+                                                        </InputSelect>
+                                                    }
+                                                    else
+                                                    {
+                                                        @o.PaymentStatus
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @if (orderEditingId == o.Id)
+                                                    {
+                                                        <InputSelect class="form-select form-select-sm" @bind-Value="orderDeliveryStatusEdit">
+                                                            <option value="Pending">pending</option>
+                                                            <option value="Cancelled">cancelled</option>
+                                                            <option value="Completed">completed</option>
+                                                        </InputSelect>
+                                                    }
+                                                    else
+                                                    {
+                                                        @o.DeliveryStatus
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @if (orderEditingId == o.Id)
+                                                    {
+                                                        <InputSelect class="form-select form-select-sm" @bind-Value="orderStatusEdit">
+                                                            <option value="Pending">pending</option>
+                                                            <option value="Cancelled">cancelled</option>
+                                                            <option value="Completed">completed</option>
+                                                        </InputSelect>
+                                                    }
+                                                    else
+                                                    {
+                                                        @o.Status
+                                                    }
+                                                </td>
+                                                <td>@o.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                                <td>
+                                                    @if (o.TimeDelivered.HasValue)
+                                                    {
+                                                        @o.TimeDelivered.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-sm btn-primary" @onclick="(() => MarkDelivered(o.Id))" disabled="@isBusy">Delivered</button>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @if (orderEditingId == o.Id)
+                                                    {
+                                                        <div class="btn-group btn-group-sm">
+                                                            <button class="btn btn-primary" @onclick="(() => SaveOrderStatus(o.Id))" disabled="@isBusy">Save</button>
+                                                            <button class="btn btn-outline-secondary" @onclick="CancelOrderStatus" disabled="@isBusy">Cancel</button>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-outline-primary btn-sm" @onclick="(() => EditOrderStatus(o))">Edit</button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="11" class="text-center text-muted">No orders yet</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 text-muted text-center">
+                    <small>Last updated: @lastUpdateTime.ToString("yyyy-MM-dd HH:mm:ss")</small>
+                    <br />
+                    <small>Auto-refreshing every 5 seconds</small>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<User>? users;
+    private List<Order> orders = new();
+    private bool isLoading = true;
+    private DateTime lastUpdateTime = DateTime.Now;
+    private System.Threading.Timer? refreshTimer;
+    private bool isBusy = false;
+    private string actionMessage = string.Empty;
+    private string actionMessageCss = "alert-primary";
+    private int? editingUserId = null;
+
+    private EditUserModel editModel = new();
+    private CreateUserModel createModel = new() { Role = "Customer" };
+    private int? orderEditingId = null;
+    private string orderStatusEdit = "Pending";
+    private string orderPaymentStatusEdit = "Pending";
+    private string orderDeliveryStatusEdit = "Pending";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+        
+        // Set up auto-refresh timer (every 5 seconds)
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadUsers();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            isLoading = true;
+            
+            // Clear any tracked entities to ensure fresh data from database
+            DbContext.ChangeTracker.Clear();
+            
+            // Use AsNoTracking() to ensure we get fresh data from database
+            // This ensures changes made via console or directly in DB are visible
+            users = await DbContext.Users
+                .AsNoTracking()
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+            orders = await DbContext.Orders
+                .AsNoTracking()
+                .OrderByDescending(o => o.CreatedAt)
+                .ToListAsync();
+            lastUpdateTime = DateTime.Now;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadUsers();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    private void StartEdit(User user)
+    {
+        editingUserId = user.Id;
+        editModel = new EditUserModel
+        {
+            FullName = user.FullName,
+            Username = user.Username,
+            Email = user.Email,
+            ContactNumber = user.ContactNumber,
+            HouseNo = user.HouseNo,
+            Street = user.Street,
+            Barangay = user.Barangay,
+            Role = user.Role
+        };
+    }
+
+    private void CancelEdit()
+    {
+        editingUserId = null;
+        editModel = new();
+    }
+
+    private async Task SaveEdit(int userId)
+    {
+        try
+        {
+            isBusy = true;
+            actionMessage = string.Empty;
+
+            // Uniqueness checks
+            var usernameExists = await DbContext.Users.AnyAsync(u => u.Username.ToLower() == editModel.Username.ToLower() && u.Id != userId);
+            if (usernameExists)
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "Username already exists.";
+                return;
+            }
+            var emailExists = await DbContext.Users.AnyAsync(u => u.Email.ToLower() == editModel.Email.ToLower() && u.Id != userId);
+            if (emailExists)
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "Email already in use.";
+                return;
+            }
+
+            var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "User not found.";
+                return;
+            }
+
+            user.FullName = editModel.FullName;
+            user.Username = editModel.Username;
+            user.Email = editModel.Email;
+            user.ContactNumber = editModel.ContactNumber;
+            user.HouseNo = editModel.HouseNo;
+            user.Street = editModel.Street;
+            user.Barangay = editModel.Barangay;
+            user.Role = editModel.Role;
+
+            await DbContext.SaveChangesAsync();
+            actionMessageCss = "alert-primary";
+            actionMessage = "User updated successfully.";
+            editingUserId = null;
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            actionMessageCss = "alert-danger";
+            actionMessage = $"Update failed: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteUser(int userId)
+    {
+        try
+        {
+            isBusy = true;
+            actionMessage = string.Empty;
+
+            var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "User not found.";
+                return;
+            }
+
+            DbContext.Users.Remove(user);
+            await DbContext.SaveChangesAsync();
+            actionMessageCss = "alert-primary";
+            actionMessage = "User deleted.";
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            actionMessageCss = "alert-danger";
+            actionMessage = $"Delete failed: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateUser()
+    {
+        try
+        {
+            isBusy = true;
+            actionMessage = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(createModel.Username) || string.IsNullOrWhiteSpace(createModel.Password) || string.IsNullOrWhiteSpace(createModel.Email))
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "Username, Password, and Email are required.";
+                return;
+            }
+
+            var existsUser = await DbContext.Users.AnyAsync(u => u.Username.ToLower() == createModel.Username.ToLower());
+            if (existsUser)
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "Username already exists.";
+                return;
+            }
+
+            var existsEmail = await DbContext.Users.AnyAsync(u => u.Email.ToLower() == createModel.Email.ToLower());
+            if (existsEmail)
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "Email already in use.";
+                return;
+            }
+
+            var newUser = new User
+            {
+                FullName = createModel.FullName ?? createModel.Username,
+                Username = createModel.Username,
+                Email = createModel.Email,
+                ContactNumber = createModel.ContactNumber ?? string.Empty,
+                HouseNo = createModel.HouseNo ?? string.Empty,
+                Street = createModel.Street ?? string.Empty,
+                Barangay = createModel.Barangay ?? string.Empty,
+                Password = createModel.Password!,
+                Role = string.IsNullOrWhiteSpace(createModel.Role) ? "Customer" : createModel.Role,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            DbContext.Users.Add(newUser);
+            await DbContext.SaveChangesAsync();
+            actionMessageCss = "alert-primary";
+            actionMessage = $"User '{createModel.Username}' created.";
+            createModel = new CreateUserModel { Role = "Customer" };
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            actionMessageCss = "alert-danger";
+            actionMessage = $"Create failed: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private void EditOrderStatus(Order o)
+    {
+        orderEditingId = o.Id;
+        orderStatusEdit = string.IsNullOrWhiteSpace(o.Status) ? "Pending" : o.Status;
+        orderPaymentStatusEdit = string.IsNullOrWhiteSpace(o.PaymentStatus) ? "Pending" : o.PaymentStatus;
+        orderDeliveryStatusEdit = string.IsNullOrWhiteSpace(o.DeliveryStatus) ? "Pending" : o.DeliveryStatus;
+    }
+
+    private void CancelOrderStatus()
+    {
+        orderEditingId = null;
+        orderStatusEdit = "Pending";
+        orderPaymentStatusEdit = "Pending";
+        orderDeliveryStatusEdit = "Pending";
+    }
+
+    private async Task SaveOrderStatus(int orderId)
+    {
+        try
+        {
+            isBusy = true;
+            var entity = await DbContext.Orders.FirstOrDefaultAsync(x => x.Id == orderId);
+            if (entity == null)
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "Order not found.";
+                return;
+            }
+            entity.Status = orderStatusEdit;
+            entity.PaymentStatus = orderPaymentStatusEdit;
+            entity.DeliveryStatus = orderDeliveryStatusEdit;
+            await DbContext.SaveChangesAsync();
+            actionMessageCss = "alert-primary";
+            actionMessage = "Status updated.";
+            orderEditingId = null;
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            actionMessageCss = "alert-danger";
+            actionMessage = $"Update failed: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarkDelivered(int orderId)
+    {
+        try
+        {
+            isBusy = true;
+            var entity = await DbContext.Orders.FirstOrDefaultAsync(x => x.Id == orderId);
+            if (entity == null)
+            {
+                actionMessageCss = "alert-danger";
+                actionMessage = "Order not found.";
+                return;
+            }
+            if (entity.TimeDelivered.HasValue)
+            {
+                return;
+            }
+            entity.TimeDelivered = DateTime.Now;
+            await DbContext.SaveChangesAsync();
+            actionMessageCss = "alert-primary";
+            actionMessage = "Order marked delivered.";
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            actionMessageCss = "alert-danger";
+            actionMessage = $"Action failed: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private class EditUserModel
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string ContactNumber { get; set; } = string.Empty;
+        public string HouseNo { get; set; } = string.Empty;
+        public string Street { get; set; } = string.Empty;
+        public string Barangay { get; set; } = string.Empty;
+        public string Role { get; set; } = "Customer";
+    }
+
+    private class CreateUserModel
+    {
+        public string? FullName { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? ContactNumber { get; set; }
+        public string? HouseNo { get; set; }
+        public string? Street { get; set; }
+        public string? Barangay { get; set; }
+        public string? Password { get; set; }
+        public string Role { get; set; } = "Customer";
+    }
+}
+

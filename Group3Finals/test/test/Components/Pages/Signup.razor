@@ -1,0 +1,666 @@
+@page "/signup"
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+@inject AppDbContext DbContext
+
+<PageTitle>Sign Up</PageTitle>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+        background: url('images/mainbg.png') no-repeat center center fixed;
+        background-size: cover;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .signup-container {
+        display: flex;
+        max-width: 1100px;
+        width: 100%;
+        min-height: 650px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .brand-section {
+        flex: 1;
+        background: linear-gradient(135deg, rgba(6, 57, 112, 0.92), rgba(4, 33, 74, 0.92));
+        color: white;
+        padding: 50px 35px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .brand-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('https://learnandsupport.getolympus.com/sites/default/files/styles/hero_large/public/2020-10/amico_-_water_droplets_1.jpg?itok=kJ972xkJ') no-repeat center center;
+        background-size: cover;
+        opacity: 0.18;
+        z-index: 0;
+    }
+
+    .brand-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: 100%;
+    }
+
+    .brand-title {
+        font-size: 42px;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: 20px;
+        letter-spacing: 0.5px;
+    }
+
+    .brand-subtitle {
+        font-size: 20px;
+        opacity: 0.95;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        color: #a8d8ff;
+        margin-bottom: 30px;
+    }
+
+    .brand-tagline {
+        font-size: 16px;
+        opacity: 0.8;
+        font-style: italic;
+        line-height: 1.5;
+        border-left: 3px solid #a8d8ff;
+        padding-left: 15px;
+        margin-top: 30px;
+    }
+
+    .form-section {
+        flex: 1.2;
+        background: rgba(255, 255, 255, 0.97);
+        backdrop-filter: blur(15px);
+        padding: 40px 35px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-header {
+        margin-bottom: 25px;
+        text-align: center;
+    }
+
+    .form-title {
+        font-size: 26px;
+        font-weight: 700;
+        color: #04214a;
+        margin-bottom: 6px;
+    }
+
+    .form-subtitle {
+        color: #666;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .form-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 12px;
+    }
+
+    .form-group {
+        flex: 1;
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: #333;
+        font-size: 13px;
+        letter-spacing: 0.2px;
+    }
+
+    .form-input, .form-textarea {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    .form-input:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #063970;
+        box-shadow: 0 0 0 2px rgba(6, 57, 112, 0.1);
+        background: white;
+    }
+
+    .form-textarea {
+        min-height: 70px;
+        resize: vertical;
+        line-height: 1.4;
+        font-size: 14px;
+    }
+
+    .full-width {
+        width: 100%;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 20px 0;
+        padding: 12px;
+        background: rgba(6, 57, 112, 0.04);
+        border-radius: 8px;
+        border-left: 3px solid #063970;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #063970;
+        flex-shrink: 0;
+    }
+
+    .checkbox-group label {
+        font-size: 13px;
+        color: #555;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .terms-link {
+        color: #063970;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.3s;
+        font-size: 13px;
+    }
+
+    .terms-link:hover {
+        color: #04214a;
+        text-decoration: underline;
+    }
+
+    .form-actions {
+        margin-top: auto;
+        padding-top: 20px;
+    }
+
+    .signup-btn {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #063970, #04214a);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(6, 57, 112, 0.25);
+        letter-spacing: 0.3px;
+    }
+
+    .signup-btn:hover {
+        background: linear-gradient(135deg, #04214a, #031a38);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(6, 57, 112, 0.35);
+    }
+
+    .signup-btn:active {
+        transform: translateY(0);
+    }
+
+    .signup-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .switch-link {
+        text-align: center;
+        font-size: 14px;
+        padding-top: 15px;
+        margin-top: 15px;
+        border-top: 1px solid #e1e5e9;
+    }
+
+    .switch-link a {
+        color: #063970;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.3s;
+    }
+
+    .switch-link a:hover {
+        color: #04214a;
+        text-decoration: underline;
+    }
+
+    .water-drop {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .water-drop-1 {
+        width: 60px;
+        height: 60px;
+        top: 15%;
+        left: 10%;
+        animation-delay: 0s;
+    }
+
+    .water-drop-2 {
+        width: 45px;
+        height: 45px;
+        top: 65%;
+        right: 15%;
+        animation-delay: 2s;
+    }
+
+    .water-drop-3 {
+        width: 35px;
+        height: 35px;
+        bottom: 25%;
+        left: 20%;
+        animation-delay: 4s;
+    }
+
+    @@keyframes float {
+        0%, 100% {
+            transform: translateY(0) scale(1);
+            opacity: 0.3;
+        }
+        50% {
+            transform: translateY(-15px) scale(1.05);
+            opacity: 0.5;
+        }
+    }
+
+    .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        border: 1px solid #fcc;
+    }
+
+    .validation-message {
+        color: #c33;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    @@media (max-width: 1024px) {
+        .signup-container {
+            max-width: 95%;
+            min-height: 600px;
+        }
+        
+        .brand-section {
+            padding: 40px 25px;
+        }
+        
+        .form-section {
+            padding: 35px 25px;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        body {
+            padding: 15px;
+        }
+        .signup-container {
+            flex-direction: column;
+            min-height: auto;
+            max-width: 500px;
+        }
+        
+        .brand-section {
+            padding: 30px 20px;
+            min-height: 200px;
+            text-align: center;
+        }
+        
+        .form-section {
+            padding: 30px 25px;
+        }
+        .form-row {
+            flex-direction: column;
+            gap: 12px;
+        }
+        .brand-title {
+            font-size: 32px;
+        }
+        .brand-subtitle {
+            font-size: 18px;
+        }
+        .form-title {
+            font-size: 22px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        body {
+            padding: 10px;
+        }
+        .brand-section {
+            padding: 25px 15px;
+        }
+        
+        .form-section {
+            padding: 25px 20px;
+        }
+        .brand-title {
+            font-size: 28px;
+        }
+        .form-title {
+            font-size: 20px;
+        }
+        .form-input, .form-textarea {
+            padding: 10px 12px;
+            font-size: 13px;
+        }
+    }
+</style>
+
+<div class="signup-container">
+    <!-- Left Brand Section -->
+    <div class="brand-section">
+        <div class="water-drop water-drop-1"></div>
+        <div class="water-drop water-drop-2"></div>
+        <div class="water-drop water-drop-3"></div>
+        <div class="brand-content">
+            <div class="brand-title">
+                Water Station<br />
+                Online Appointment
+            </div>
+            <div class="brand-subtitle">Pure Water, Pure Life</div>
+            <div class="brand-tagline">
+                Your trusted partner for clean, refreshing water delivered right to your doorstep
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Form Section -->
+    <div class="form-section">
+        <div class="form-header">
+            <h2 class="form-title">Sign up</h2>
+            <div class="form-subtitle">Create your account</div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="error-message">
+                @errorMessage
+            </div>
+        }
+
+        <EditForm Model="@signupModel" OnValidSubmit="HandleSignup">
+            <DataAnnotationsValidator />
+
+            <div class="form-content">
+                <!-- Row 1: Fullname -->
+                <div class="form-group full-width">
+                    <label class="form-label">Full Name</label>
+                    <InputText class="form-input" @bind-Value="signupModel.FullName" placeholder="Enter your Full Name" />
+                    <ValidationMessage For="@(() => signupModel.FullName)" class="validation-message" />
+                </div>
+
+                <!-- Row 2: Username and Email -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <InputText class="form-input" @bind-Value="signupModel.Username" placeholder="Choose username" />
+                        <ValidationMessage For="@(() => signupModel.Username)" class="validation-message" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <InputText class="form-input" type="email" @bind-Value="signupModel.Email" placeholder="Enter email" />
+                        <ValidationMessage For="@(() => signupModel.Email)" class="validation-message" />
+                    </div>
+                </div>
+
+                <!-- Row 3: Contact -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Contact number</label>
+                        <InputText class="form-input" type="tel" @bind-Value="signupModel.ContactNumber" placeholder="Phone number" />
+                        <ValidationMessage For="@(() => signupModel.ContactNumber)" class="validation-message" />
+                    </div>
+                </div>
+
+                <!-- Address fields -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">House No.</label>
+                        <InputText class="form-input" @bind-Value="signupModel.HouseNo" placeholder="House number" />
+                        <ValidationMessage For="@(() => signupModel.HouseNo)" class="validation-message" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Street</label>
+                        <InputText class="form-input" @bind-Value="signupModel.Street" placeholder="Street name" />
+                        <ValidationMessage For="@(() => signupModel.Street)" class="validation-message" />
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Barangay</label>
+                    <InputText class="form-input" list="barangayOptions" @bind-Value="signupModel.Barangay" placeholder="Select or type barangay" />
+                    <datalist id="barangayOptions">
+                        <option value="San Roque" />
+                        <option value="Tangos" />
+                        <option value="Daanghari" />
+                    </datalist>
+                    <ValidationMessage For="@(() => signupModel.Barangay)" class="validation-message" />
+                </div>
+
+                <!-- Row 4: Password and Confirm Password -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <InputText type="password" class="form-input" @bind-Value="signupModel.Password" placeholder="Create password" />
+                        <ValidationMessage For="@(() => signupModel.Password)" class="validation-message" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Confirm password</label>
+                        <InputText type="password" class="form-input" @bind-Value="signupModel.ConfirmPassword" placeholder="Confirm password" />
+                        <ValidationMessage For="@(() => signupModel.ConfirmPassword)" class="validation-message" />
+                    </div>
+                </div>
+
+                <div class="checkbox-group">
+                    <InputCheckbox id="termsAccepted" @bind-Value="signupModel.TermsAccepted" />
+                    <label for="termsAccepted">
+                        I agree to the <a href="#" class="terms-link" @onclick="ShowTerms" @onclick:preventDefault="true">Terms and Conditions</a>
+                    </label>
+                </div>
+                @if (!signupModel.TermsAccepted && showTermsError)
+                {
+                    <div class="validation-message">You must agree to the terms and conditions</div>
+                }
+
+                <div class="form-actions">
+                    <button type="submit" class="signup-btn" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <text>Creating Account...</text>
+                        }
+                        else
+                        {
+                            <text>Create account</text>
+                        }
+                    </button>
+                    <div class="switch-link">
+                        Already have an account? <a href="/login">Log in</a>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private SignupModel signupModel = new();
+    private string errorMessage = string.Empty;
+    private bool isSubmitting = false;
+    private bool showTermsError = false;
+
+    private async Task HandleSignup()
+    {
+        errorMessage = string.Empty;
+        showTermsError = false;
+        isSubmitting = true;
+        StateHasChanged();
+
+        // Validate terms acceptance
+        if (!signupModel.TermsAccepted)
+        {
+            showTermsError = true;
+            isSubmitting = false;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            // Check if username already exists
+            var existingUser = await DbContext.Users
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == signupModel.Username.ToLower() 
+                    || u.Email.ToLower() == signupModel.Email.ToLower());
+
+            if (existingUser != null)
+            {
+                if (existingUser.Username.ToLower() == signupModel.Username.ToLower())
+                {
+                    errorMessage = "Username already exists. Please choose a different username.";
+                }
+                else
+                {
+                    errorMessage = "Email already registered. Please use a different email.";
+                }
+                isSubmitting = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Create new user
+            var newUser = new User
+            {
+                FullName = signupModel.FullName,
+                Username = signupModel.Username,
+                Email = signupModel.Email,
+                ContactNumber = signupModel.ContactNumber,
+                HouseNo = signupModel.HouseNo,
+                Street = signupModel.Street,
+                Barangay = signupModel.Barangay,
+                Password = signupModel.Password, // In production, hash this password
+                Role = "Customer", // All signups are automatically customers
+                CreatedAt = DateTime.UtcNow
+            };
+
+            DbContext.Users.Add(newUser);
+            await DbContext.SaveChangesAsync();
+
+            // Redirect to login page
+            await Task.Delay(500);
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowTerms()
+    {
+        // TODO: Show terms and conditions modal or navigate to terms page
+        Console.WriteLine("Show Terms and Conditions");
+        // Navigation.NavigateTo("/terms");
+    }
+
+    public class SignupModel
+    {
+        [Required(ErrorMessage = "Full Name is required")]
+        [MinLength(2, ErrorMessage = "Full Name must be at least 2 characters")]
+        [StringLength(100, ErrorMessage = "Full Name cannot exceed 100 characters")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Username is required")]
+        [MinLength(3, ErrorMessage = "Username must be at least 3 characters")]
+        [StringLength(50, ErrorMessage = "Username cannot exceed 50 characters")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Contact Number is required")]
+        [StringLength(20, ErrorMessage = "Contact Number cannot exceed 20 characters")]
+        public string ContactNumber { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "House No. is required")]
+        [StringLength(50, ErrorMessage = "House No. cannot exceed 50 characters")]
+        public string HouseNo { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Street is required")]
+        [StringLength(100, ErrorMessage = "Street cannot exceed 100 characters")]
+        public string Street { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Barangay is required")]
+        [StringLength(50, ErrorMessage = "Barangay cannot exceed 50 characters")]
+        public string Barangay { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters")]
+        [StringLength(255, ErrorMessage = "Password cannot exceed 255 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your password")]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        public bool TermsAccepted { get; set; } = false;
+    }
+}
+

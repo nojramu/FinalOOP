@@ -1,0 +1,396 @@
+@page "/customer/place-order"
+@rendermode InteractiveServer
+@layout Layout.CustomerLayout
+@inject AppDbContext DbContext
+@inject test.Services.CurrentUserContext CurrentUser
+
+<PageTitle>Place Order</PageTitle>
+
+<style>
+    .place-order-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        color: #fff;
+        width: 100%;
+    }
+
+    .success-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        color: #fff;
+        min-height: 60vh;
+        width: 100%;
+    }
+
+    .success-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #004c91;
+        padding: 3rem;
+        border-radius: 12px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        text-align: center;
+        max-width: 600px;
+        width: 90%;
+    }
+
+    .success-card .display-6 {
+        color: #004c91;
+        font-weight: 700;
+    }
+
+    .success-card .lead {
+        color: #333;
+    }
+
+    .place-order-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #004c91;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        width: 90%;
+        max-width: 1000px;
+    }
+
+    .place-order-card h3 {
+        color: #004c91;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+
+    .place-order-card .form-label {
+        color: #333;
+        font-weight: 600;
+    }
+
+    .place-order-card .alert {
+        border-radius: 8px;
+    }
+
+    .place-order-card .alert-secondary {
+        background: rgba(108, 117, 125, 0.1);
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(108, 117, 125, 0.3);
+    }
+
+    @@media (max-width: 768px) {
+        .place-order-container {
+            padding: 1rem;
+        }
+
+        .place-order-card {
+            padding: 1.5rem;
+        }
+    }
+</style>
+
+@if (showSuccess)
+{
+    <div class="success-container">
+        <div class="success-card">
+            <div class="display-6 mb-3">✅ Order placed successfully!</div>
+            <p class="lead mb-4">Please wait 10–15 minutes for the gallon pickup at your provided address.<br />Check the Order History page for your order status.</p>
+            <a href="/customer/order-history" class="btn btn-primary">Go to Order History</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="place-order-container">
+        <div class="place-order-card">
+            <h3>Place Order</h3>
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+
+                        @if (step == 1)
+                        {
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Do you have a gallon?</label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn @(model.HasGallon ? "btn-primary" : "btn-outline-primary")" @onclick="(() => SelectHasGallon(true))">Yes</button>
+                                    <button class="btn @(!model.HasGallon ? "btn-primary" : "btn-outline-primary")" @onclick="(() => SelectHasGallon(false))">No</button>
+                                </div>
+                            </div>
+
+                            @if (model.HasGallon)
+                            {
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Select an option</label>
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <button class="btn @(model.RefillGallon ? "btn-primary" : "btn-outline-primary")" @onclick="(() => ToggleRefill(true))">Refill Gallon</button>
+                                        <button class="btn @(model.PurchaseGallon ? "btn-primary" : "btn-outline-primary")" @onclick="(() => TogglePurchase(true))">Purchase Gallon</button>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">Choose the option you want to proceed with.</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="mb-3">
+                                    <div class="alert alert-info">You don't have a gallon. Proceed to purchase a new gallon.</div>
+                                </div>
+                                @code{ }
+                                @functions{ }
+                            }
+
+                            <div class="d-flex justify-content-end">
+                                <button class="btn btn-primary" @onclick="NextStep">Next</button>
+                            </div>
+                        }
+                        else if (step == 2)
+                        {
+                            <EditForm Model="@model" OnValidSubmit="NextStep">
+                                <DataAnnotationsValidator />
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Name</label>
+                                        <InputText class="form-control" @bind-Value="model.CustomerName" placeholder="Enter your name to be written on the gallon" />
+                                        <ValidationMessage For="@(() => model.CustomerName)" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">House No.</label>
+                                        <InputText class="form-control" @bind-Value="model.HouseNo" placeholder="Enter your house number" />
+                                        <ValidationMessage For="@(() => model.HouseNo)" />
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Street</label>
+                                        <InputText class="form-control" @bind-Value="model.Street" placeholder="Enter your street" />
+                                        <ValidationMessage For="@(() => model.Street)" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Barangay</label>
+                                        <InputText class="form-control" list="barangayOptions" @bind-Value="model.Barangay" placeholder="Select/type your barangay" />
+                                        <datalist id="barangayOptions">
+                                            <option value="San Roque" />
+                                            <option value="Tangos" />
+                                            <option value="Daanghari" />
+                                        </datalist>
+                                        <ValidationMessage For="@(() => model.Barangay)" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">City</label>
+                                        <InputText class="form-control" @bind-Value="model.City" disabled />
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Payment Method</label>
+                                        <InputSelect class="form-select" @bind-Value="model.PaymentMethod">
+                                            <option value="">Select...</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="e-wallet">E-Wallet</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => model.PaymentMethod)" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label">Message for the delivery rider</label>
+                                        <InputTextArea class="form-control" @bind-Value="model.DeliveryMessage" rows="3" placeholder="Landmarks, gate instructions, preferred time, etc." />
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Type</label>
+                                        <InputSelect class="form-select" @bind-Value="model.Type">
+                                            <option value="">Select...</option>
+                                            <option value="Slim">Slim</option>
+                                            <option value="Round">Round</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => model.Type)" />
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Quantity</label>
+                                        <InputNumber class="form-control" @bind-Value="model.Quantity" />
+                                        <ValidationMessage For="@(() => model.Quantity)" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="alert alert-secondary">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <div><strong>Selected:</strong> @(model.PurchaseGallon ? "Purchase Gallon" : model.RefillGallon ? "Refill Gallon" : "None")</div>
+                                                    <div><strong>Unit Price:</strong> ₱@unitPrice</div>
+                                                </div>
+                                                <div class="text-end">
+                                                    <div class="fs-5 mb-1"><strong>Total:</strong> ₱@totalPrice</div>
+                                                    <small class="text-muted">Auto-calculated based on type and quantity</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between mt-3">
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="PrevStep">Back</button>
+                                    <button type="submit" class="btn btn-primary">Confirm Order</button>
+                                </div>
+                            </EditForm>
+                        }
+                        else if (step == 3)
+                        {
+                            <div class="text-center">
+                                <div class="display-6 mb-3" style="color: #004c91;">No option selected.</div>
+                                <p class="lead mb-4" style="color: #333;">Do you want to check history? <a href="/customer/order-history">Click here</a>.</p>
+                                <button class="btn btn-outline-secondary" @onclick="GoHome">Back</button>
+                            </div>
+                        }
+        </div>
+    </div>
+}
+
+@code {
+    private bool showSuccess = false;
+    private string errorMessage = string.Empty;
+    private int step = 1;
+
+    private PlaceOrderModel model = new();
+
+    private decimal unitPrice => CalculateUnitPrice();
+    private decimal totalPrice => unitPrice * model.Quantity;
+
+    private void SelectHasGallon(bool has)
+    {
+        model.HasGallon = has;
+        if (!has)
+        {
+            model.PurchaseGallon = true;
+            model.RefillGallon = false;
+        }
+    }
+
+    private void TogglePurchase(bool value)
+    {
+        model.PurchaseGallon = value;
+        if (value) model.RefillGallon = false;
+    }
+
+    private void ToggleRefill(bool value)
+    {
+        model.RefillGallon = value;
+        if (value) model.PurchaseGallon = false;
+    }
+
+    private async Task NextStep()
+    {
+        errorMessage = string.Empty;
+        if (step == 1)
+        {
+            if (!model.PurchaseGallon && !model.RefillGallon)
+            {
+                step = 3; // None selected screen
+            }
+            else
+            {
+                step = 2;
+            }
+        }
+        else if (step == 2)
+        {
+            // Validate required
+            if (!ValidateForm()) return;
+            await SaveOrderAsync();
+        }
+    }
+
+    private void PrevStep()
+    {
+        if (step > 1) step--;
+    }
+
+    private void GoHome()
+    {
+        step = 1;
+        errorMessage = string.Empty;
+    }
+
+    private bool ValidateForm()
+    {
+        if (string.IsNullOrWhiteSpace(model.CustomerName)
+            || string.IsNullOrWhiteSpace(model.HouseNo)
+            || string.IsNullOrWhiteSpace(model.Street)
+            || string.IsNullOrWhiteSpace(model.Barangay)
+            || string.IsNullOrWhiteSpace(model.PaymentMethod)
+            || string.IsNullOrWhiteSpace(model.Type)
+            || model.Quantity <= 0)
+        {
+            errorMessage = "All fields are required.";
+            return false;
+        }
+        return true;
+    }
+
+    private decimal CalculateUnitPrice()
+    {
+        if (model.PurchaseGallon)
+        {
+            return model.Type == "Round" ? 250 : model.Type == "Slim" ? 200 : 0;
+        }
+        else if (model.RefillGallon)
+        {
+            return model.Type == "Round" ? 30 : model.Type == "Slim" ? 25 : 0;
+        }
+        return 0;
+    }
+
+    private async Task SaveOrderAsync()
+    {
+        try
+        {
+            var order = new Order
+            {
+                Username = string.IsNullOrWhiteSpace(model.Username) ? CurrentUser.Username : model.Username,
+                CustomerName = model.CustomerName,
+                HouseNo = model.HouseNo,
+                Street = model.Street,
+                Barangay = model.Barangay,
+                City = model.City,
+                HasGallon = model.HasGallon,
+                PurchaseGallon = model.PurchaseGallon,
+                RefillGallon = model.RefillGallon,
+                Type = model.Type,
+                Quantity = model.Quantity,
+                PaymentMethod = model.PaymentMethod,
+                TotalPrice = totalPrice,
+                PaymentStatus = "Pending",
+                DeliveryStatus = "Pending",
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            DbContext.Orders.Add(order);
+            await DbContext.SaveChangesAsync();
+
+            showSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to save order: {ex.Message}";
+        }
+    }
+
+    public class PlaceOrderModel
+    {
+        public string? Username { get; set; }
+        public bool HasGallon { get; set; }
+        public bool PurchaseGallon { get; set; }
+        public bool RefillGallon { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string HouseNo { get; set; } = string.Empty;
+        public string Street { get; set; } = string.Empty;
+        public string Barangay { get; set; } = string.Empty;
+        public string City { get; set; } = "Navotas City";
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty; // Slim or Round
+        public int Quantity { get; set; } = 1;
+        public string? DeliveryMessage { get; set; }
+    }
+}

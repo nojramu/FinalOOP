@@ -1,0 +1,411 @@
+@page "/"
+@page "/login"
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+@inject AppDbContext DbContext
+@inject test.Services.CurrentUserContext CurrentUser
+
+<PageTitle>Login</PageTitle>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+        background: url('/images/mainbg.png') no-repeat center center fixed;
+        background-size: cover;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .login-container {
+        display: flex;
+        max-width: 1000px;
+        width: 100%;
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        border-radius: 15px;
+        overflow: hidden;
+        margin: auto;
+    }
+
+    .brand-section {
+        flex: 1;
+        background: linear-gradient(135deg, rgba(6, 57, 112, 0.9), rgba(4, 33, 74, 0.9));
+        color: white;
+        padding: 60px 40px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .brand-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('https://learnandsupport.getolympus.com/sites/default/files/styles/hero_large/public/2020-10/amico_-_water_droplets_1.jpg?itok=kJ972xkJ') no-repeat center center;
+        background-size: cover;
+        opacity: 0.15;
+        z-index: 0;
+    }
+
+    .brand-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: 100%;
+    }
+
+    .brand-title {
+        font-size: 42px;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: 20px;
+        letter-spacing: 0.5px;
+    }
+
+    .brand-subtitle {
+        font-size: 20px;
+        opacity: 0.95;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        color: #a8d8ff;
+        margin-bottom: 30px;
+    }
+
+    .brand-tagline {
+        font-size: 16px;
+        opacity: 0.8;
+        font-style: italic;
+        line-height: 1.5;
+        border-left: 3px solid #a8d8ff;
+        padding-left: 15px;
+        margin-top: 30px;
+    }
+
+    .form-section {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 60px 40px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .form-header {
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    .form-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #04214a;
+        margin-bottom: 5px;
+    }
+
+    .form-subtitle {
+        color: #666;
+        font-size: 14px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+        font-size: 14px;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23003366'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.7rem top 50%;
+        background-size: 1rem;
+        cursor: pointer;
+    }
+
+    .form-input:focus, .form-select:focus {
+        outline: none;
+        border-color: #063970;
+    }
+
+    .forgot-password {
+        text-align: right;
+        margin-top: -10px;
+        margin-bottom: 20px;
+    }
+
+    .forgot-password a {
+        color: #063970;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .forgot-password a:hover {
+        text-decoration: underline;
+    }
+
+    .login-btn {
+        width: 100%;
+        padding: 14px;
+        background: #063970;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+        margin-top: 10px;
+    }
+
+    .login-btn:hover {
+        background: #04214a;
+    }
+
+    .login-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .switch-link {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 14px;
+    }
+
+    .switch-link a {
+        color: #063970;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .switch-link a:hover {
+        text-decoration: underline;
+    }
+
+    .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        border: 1px solid #fcc;
+    }
+
+    .success-message {
+        background: #efe;
+        color: #3c3;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        border: 1px solid #cfc;
+    }
+
+    @@media (max-width: 768px) {
+        .login-container {
+            flex-direction: column;
+        }
+        
+        .brand-section {
+            padding: 40px 20px;
+            text-align: center;
+        }
+        
+        .form-section {
+            padding: 40px 20px;
+        }
+
+        .brand-title {
+            font-size: 32px;
+        }
+
+        .brand-subtitle {
+            font-size: 18px;
+        }
+    }
+</style>
+
+<div class="login-container">
+    <!-- Left Brand Section -->
+    <div class="brand-section">
+        <div class="brand-content">
+            <div class="brand-title">
+                Water Station<br />
+                Online Appointment
+            </div>
+            <div class="brand-subtitle">Pure Water, Pure Life</div>
+            <div class="brand-tagline">
+                Your trusted partner for clean, refreshing water delivered right to your doorstep
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Form Section -->
+    <div class="form-section">
+        <div class="form-header">
+            <h2 class="form-title">Login</h2>
+            <div class="form-subtitle">Access your account</div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="error-message">
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="success-message">
+                @successMessage
+            </div>
+        }
+
+        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <InputText class="form-input" @bind-Value="loginModel.Username" placeholder="Enter your username" />
+                <ValidationMessage For="@(() => loginModel.Username)" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <InputText type="password" class="form-input" @bind-Value="loginModel.Password" placeholder="Enter your password" />
+                <ValidationMessage For="@(() => loginModel.Password)" />
+            </div>
+
+            <div class="forgot-password">
+                <a href="/forgot-password" @onclick="() => { }" @onclick:preventDefault="true">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="login-btn" disabled="@isLoggingIn">
+                @if (isLoggingIn)
+                {
+                    <text>Logging in...</text>
+                }
+                else
+                {
+                    <text>Login</text>
+                }
+            </button>
+        </EditForm>
+
+        <div class="switch-link">
+            Don't have an account? <a href="/signup">Create account</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoggingIn = false;
+
+    private async Task HandleLogin()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        isLoggingIn = true;
+        StateHasChanged();
+
+        try
+        {
+            // Find user by username
+            var user = await DbContext.Users
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == loginModel.Username.ToLower());
+
+            if (user == null)
+            {
+                errorMessage = "Invalid username or password.";
+                isLoggingIn = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Check password (In production, use password hashing)
+            if (user.Password != loginModel.Password)
+            {
+                errorMessage = "Invalid username or password.";
+                isLoggingIn = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Login successful
+            successMessage = $"Welcome back, {user.FullName}!";
+            await Task.Delay(1000);
+            
+            // Set current user context
+            CurrentUser.Username = user.Username;
+            CurrentUser.Role = user.Role;
+
+            // Redirect based on user role
+            if (user.Role == "Admin")
+            {
+                Navigation.NavigateTo("/admin/home", forceLoad: true);
+            }
+            else
+            {
+                Navigation.NavigateTo("/customer/home", forceLoad: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+            isLoggingIn = false;
+            StateHasChanged();
+        }
+    }
+
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Username is required")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        public string Password { get; set; } = string.Empty;
+    }
+}
+

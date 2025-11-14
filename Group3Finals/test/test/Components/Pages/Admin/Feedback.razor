@@ -1,0 +1,260 @@
+@page "/admin/feedback"
+@layout Layout.AdminLayout
+@rendermode InteractiveServer
+@inject AppDbContext DbContext
+@inject test.Services.CurrentUserContext CurrentUser
+@using test.Models
+
+<PageTitle>Feedback</PageTitle>
+
+<style>
+    .feedback-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        color: #fff;
+        width: 100%;
+    }
+
+    .feedback-header {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #004c91;
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        margin-bottom: 2rem;
+        width: 90%;
+        max-width: 1000px;
+    }
+
+    .feedback-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .feedback-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #004c91;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        width: 90%;
+        max-width: 1000px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .feedback-card .card-body {
+        padding: 0;
+    }
+
+    .feedback-card .bg-light {
+        background: rgba(248, 249, 250, 0.9) !important;
+        backdrop-filter: blur(5px);
+    }
+
+    .no-feedback {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        color: #666;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        width: 90%;
+        max-width: 1000px;
+    }
+
+    @@media (max-width: 768px) {
+        .feedback-container {
+            padding: 1rem;
+        }
+
+        .feedback-card {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<div class="feedback-container">
+    <div class="feedback-header">
+        <h2>Customer Feedbacks</h2>
+    </div>
+
+    @if (feedbacks == null || !feedbacks.Any())
+    {
+        <div class="no-feedback">
+            <p class="mb-0">No feedbacks yet.</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var feedback in feedbacks.OrderByDescending(f => f.CreatedAt))
+        {
+            <div class="feedback-card">
+                <div class="card-body">
+                    @* Customer Feedback *@
+                    <div class="d-flex align-items-center gap-3 mb-2 flex-wrap">
+                        <span class="fw-bold">@feedback.DisplayName</span>
+                        <div style="color: #FFD700; font-size: 1.2rem;">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                <span>@(i <= feedback.Rating ? "★" : "☆")</span>
+                            }
+                        </div>
+                        <span class="text-muted small">@feedback.CreatedAt.ToString("MMM dd, yyyy hh:mm tt")</span>
+                    </div>
+                    
+                    <div class="mt-2 mb-3">
+                        <p class="mb-0">@feedback.Comment</p>
+                    </div>
+
+                    @* Admin Reply Section *@
+                    @if (string.IsNullOrEmpty(feedback.AdminReply))
+                    {
+                        @* Show reply form if no reply exists *@
+                        {
+                            var replyModel = GetReplyModel(feedback.Id);
+                            var feedbackId = feedback.Id;
+                            <div class="mt-3 p-3 bg-light rounded">
+                                <EditForm Model="@replyModel" OnValidSubmit="@(() => SubmitReply(feedbackId))">
+                                    <DataAnnotationsValidator />
+                                    <div class="mb-2">
+                                        <label class="form-label fw-bold">Reply to this feedback:</label>
+                                        <InputTextArea class="form-control" rows="3" 
+                                                     @bind-Value="replyModel.Reply" 
+                                                     placeholder="Type your reply here..." />
+                                        <ValidationMessage For="@(() => replyModel.Reply)" />
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm" disabled="@IsSubmittingReply(feedbackId)">
+                                        @if (IsSubmittingReply(feedbackId))
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                        }
+                                        Post Reply
+                                    </button>
+                                </EditForm>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        @* Show existing reply *@
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <strong>Admin Reply:</strong>
+                                @if (feedback.AdminReplyDate.HasValue)
+                                {
+                                    <span class="text-muted small">@feedback.AdminReplyDate.Value.ToString("MMM dd, yyyy hh:mm tt")</span>
+                                }
+                            </div>
+                            <p class="mb-0">@feedback.AdminReply</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@implements IDisposable
+
+@code {
+    private List<test.Models.Feedback>? feedbacks;
+    private Dictionary<int, ReplyModel> replyModels = new();
+    private Dictionary<int, bool> submittingReplies = new();
+    private System.Threading.Timer? refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFeedbacks();
+        
+        // Set up timer to refresh feedbacks every 2 seconds
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadFeedbacks();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(2));
+    }
+
+    private async Task LoadFeedbacks()
+    {
+        feedbacks = await DbContext.Feedbacks
+            .AsNoTracking()
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync();
+    }
+
+    private ReplyModel GetReplyModel(int feedbackId)
+    {
+        if (!replyModels.ContainsKey(feedbackId))
+        {
+            replyModels[feedbackId] = new ReplyModel();
+        }
+        return replyModels[feedbackId];
+    }
+
+    private bool IsSubmittingReply(int feedbackId)
+    {
+        return submittingReplies.ContainsKey(feedbackId) && submittingReplies[feedbackId];
+    }
+
+    private async Task SubmitReply(int feedbackId)
+    {
+        var replyModel = GetReplyModel(feedbackId);
+        
+        if (string.IsNullOrWhiteSpace(replyModel.Reply))
+        {
+            return;
+        }
+
+        submittingReplies[feedbackId] = true;
+        StateHasChanged();
+
+        try
+        {
+            var feedback = await DbContext.Feedbacks.FindAsync(feedbackId);
+            if (feedback != null)
+            {
+                feedback.AdminReply = replyModel.Reply.Trim();
+                feedback.AdminReplyDate = DateTime.UtcNow;
+                await DbContext.SaveChangesAsync();
+
+                // Clear the reply model
+                replyModels[feedbackId] = new ReplyModel();
+            }
+
+            // Reload feedbacks
+            await LoadFeedbacks();
+        }
+        catch (Exception ex)
+        {
+            // Handle error (could show error message)
+            Console.WriteLine($"Error submitting reply: {ex.Message}");
+        }
+        finally
+        {
+            submittingReplies[feedbackId] = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    public class ReplyModel
+    {
+        [Required(ErrorMessage = "Reply is required")]
+        [StringLength(1000, ErrorMessage = "Reply cannot exceed 1000 characters")]
+        public string Reply { get; set; } = string.Empty;
+    }
+}
