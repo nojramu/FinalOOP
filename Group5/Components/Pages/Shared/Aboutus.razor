@@ -1,0 +1,325 @@
+@page "/about-us"
+
+<div class="page-container">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <img src="/images/UE.png" alt="UE Logo" class="university-logo" />
+            <span class="university-name">UNIVERSITY OF THE EAST</span>
+        </div>
+        <nav class="header-nav">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/help" class="nav-link">Help</a>
+            <a href="/about-us" class="nav-link">About Us</a>
+        </nav>
+    </header>
+
+    <!-- Main Content with Background -->
+    <div class="main-bg">
+        <div class="hero-panel">
+            <!-- College of Engineering Logo -->
+            <div class="college-logo">
+                <img src="/images/ENLOGO.png" alt="College of Engineering Logo" class="logo-image" />
+            </div>
+
+            <!-- Main Titles -->
+            <h1 class="main-title">UE - CALOOCAN</h1>
+            <h2 class="subtitle">Engineering Borrowing System</h2>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <p>
+                    The project we propose is a small-scale borrowing management system. In this project, users will be able to create a requirement form of borrow that serves as a license to borrow items. It creates a borrowing form where items that you borrowed are listed and you can list all the items you would like to borrow. It also includes other borrowing details such as name and age, date and purpose of borrowing items.
+                </p>
+                <p>
+                    The purpose of this proposal is to provide a system for borrowing materials from different departments in a more organized and efficient way. It allows the process of borrowing materials faster and easier to manage for both the students and administrators.
+                </p>
+                <p>
+                    Furthermore, this system:
+                </p>
+                <ul>
+                    <li><strong>Manage borrowing items efficiently</strong> - helps the users to borrow items easier.</li>
+                    <li><strong>Provides a clear tracking of borrowed items</strong> - allows tracking of borrowed items, including who borrowed and what was borrowed.</li>
+                    <li><strong>Provides proper record keeping</strong> - records all borrowed items and other details in the database so nothing gets lost or forgotten.</li>
+                </ul>
+            </div>
+
+            <!-- Team Section -->
+            <h2 class="team-title">Our Team</h2>
+            <div class="members-section">
+                <div class="member-card">
+                    <div class="photo-box">
+                        <img src="/images/PARK.jpg" alt="Chang Hyun Park" class="member-photo" />
+                    </div>
+                    <div class="member-info">
+                        <p><strong>Chang Hyun Park</strong></p>
+                        <p>Role / Information</p>
+                    </div>
+                </div>
+
+                <div class="member-card">
+                    <div class="photo-box">
+                        <img src="/images/JOVEN.jpg" alt="Rakim Krishna Joven" class="member-photo" />
+                    </div>
+                    <div class="member-info">
+                        <p><strong>Rakim Krishna Joven</strong></p>
+                        <p>Role / Information</p>
+                    </div>
+                </div>
+
+                <div class="member-card">
+                    <div class="photo-box">
+                        <img src="/images/BACUS.jpg" alt="Romulo Bacus III" class="member-photo" />
+                    </div>
+                    <div class="member-info">
+                        <p><strong>Romulo Bacus III</strong></p>
+                        <p>Role / Information</p>
+                    </div>
+                </div>
+
+                <div class="member-card">
+                    <div class="photo-box">
+                        <img src="/images/GARGARITANO.jpg" alt="Eddieson Gargaritano" class="member-photo" />
+                    </div>
+                    <div class="member-info">
+                        <p><strong>Eddieson Gargaritano</strong></p>
+                        <p>Role / Information</p>
+                    </div>
+                </div>
+
+                <div class="member-card">
+                    <div class="photo-box">
+                        <img src="/images/TAMPUS.jpg" alt="Jevric Tampus" class="member-photo" />
+                    </div>
+                    <div class="member-info">
+                        <p><strong>Jevric Tampus</strong></p>
+                        <p>Role / Information</p>
+                    </div>
+                </div>
+
+                <div class="member-card">
+                    <div class="photo-box">
+                        <img src="/images/VELASQUEZ.jpg" alt="Jeremy Velasquez" class="member-photo" />
+                    </div>
+                    <div class="member-info">
+                        <p><strong>Jeremy Velasquez</strong></p>
+                        <p>Role / Information</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .page-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+        background-color: #8B0000;
+        color: white;
+        padding: 15px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        z-index: 10;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .university-logo {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .university-name {
+        font-size: 24px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+    }
+
+    .header-nav {
+        display: flex;
+        gap: 30px;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        transition: opacity 0.3s;
+    }
+
+    .nav-link:hover {
+        opacity: 0.8;
+    }
+
+    /* Main Background */
+    .main-bg {
+        flex: 1;
+        background-image: url('/images/EN%20BLDG.png');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        padding: 80px 20px 60px 20px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    /* Hero Panel */
+    .hero-panel {
+        background: rgba(178, 34, 34, 0.85);
+        border-radius: 15px;
+        padding: 40px;
+        max-width: 1000px;
+        width: 100%;
+        color: white;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        position: relative;
+    }
+
+    /* College of Engineering Logo */
+    .college-logo {
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5;
+    }
+
+    .logo-image {
+        width: 120px;
+        height: 120px;
+        object-fit: contain;
+        border: none !important;
+        outline: none !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Main Titles */
+    .main-title {
+        font-size: 4rem;
+        font-weight: bold;
+        margin: 40px 0 20px 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-decoration: underline;
+        text-underline-offset: 10px;
+    }
+
+    .subtitle {
+        font-size: 2.2rem;
+        font-weight: bold;
+        margin-bottom: 30px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Content Area */
+    .content-area {
+        text-align: left;
+        font-size: 1.1rem;
+        line-height: 1.7;
+        margin-bottom: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        border-radius: 10px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .content-area p {
+        margin-bottom: 15px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .content-area ul {
+        list-style-type: disc;
+        margin-left: 30px;
+    }
+
+    .content-area li {
+        margin-bottom: 8px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .content-area strong {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Team Section */
+    .team-title {
+        font-size: 2.5rem;
+        margin-bottom: 30px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .members-section {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+    }
+
+    .member-card {
+        width: 220px;
+        background-color: rgba(248, 249, 250, 0.9);
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        padding: 15px;
+        text-align: center;
+        transition: transform 0.3s ease;
+        color: #333;
+    }
+
+    .member-card:hover {
+        transform: scale(1.05);
+    }
+
+    .photo-box {
+        width: 100%;
+        height: 200px;
+        background-color: #d3d3d3;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+        overflow: hidden;
+    }
+
+    .member-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+    }
+
+    .member-info p {
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .member-info strong {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    
+</style>

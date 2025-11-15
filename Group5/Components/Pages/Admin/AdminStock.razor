@@ -1,0 +1,353 @@
+@page "/adminstock"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject Group5.Data.AppDbContext Db
+@inject Group5.Services.Interfaces.IInventoryService InventoryService
+@using System
+@using System.Linq
+@using Group5.Shared
+@using Group5.Models
+@using Group5.Data
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Administrator</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/admindashboard" class="nav-item">Overview</a>
+            <a href="/adminforms" class="nav-item">All Forms</a>
+            <a href="/adminstock" class="nav-item active">Stock</a>
+            <a href="/adminissue" class="nav-item">Issue Items</a>
+            <a href="/adminreturns" class="nav-item">Returns</a>
+            <a href="/viewdatabase" class="nav-item">View Users</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">📦</span> STOCK MANAGEMENT</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        <section class="stock-section">
+            <div class="section-header">
+                <h3>Manage Stock Quantities</h3>
+                <p>Edit quantities and click <strong>Save All Changes</strong> to update. Changes are saved to the database and reflect in real-time across all pages.</p>
+            </div>
+
+            @if (inventoryItems == null)
+            {
+                <div class="loading-state">
+                    <p>⏳ Loading inventory...</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var departmentGroup in inventoryItems.GroupBy(i => i.Department).OrderBy(g => g.Key))
+                {
+                    <div class="stock-group">
+                        <h4>@departmentGroup.Key</h4>
+                        <div class="stock-items">
+                            @foreach (var item in departmentGroup.OrderBy(i => i.ItemName))
+                            {
+                                var itemKey = $"{item.Department}|{item.ItemName}";
+                                var currentQty = tempStock.TryGetValue(itemKey, out int qty) ? qty : item.TotalQuantity;
+                                <div class="stock-item">
+                                    <label>@item.ItemName</label>
+                                    <div class="stock-input-group">
+                                        <input type="number" 
+                                               min="0" 
+                                               value="@currentQty"
+                                               @onchange="@((ChangeEventArgs e) => UpdateTempStock(itemKey, e.Value?.ToString()))"
+                                               @oninput="@((ChangeEventArgs e) => UpdateTempStock(itemKey, e.Value?.ToString()))"
+                                               class="stock-input" />
+                                        <div class="stock-info">
+                                            <span class="available-badge">Available: @item.AvailableQuantity</span>
+                                            <span class="max-badge">Max/Student: @item.MaxPerStudent</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="action-bar">
+                    <button class="btn-primary" @onclick="SaveStockChanges" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span>Saving...</span>
+                        }
+                        else
+                        {
+                            <span>Save All Changes</span>
+                        }
+                    </button>
+                </div>
+            }
+        </section>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="message @(message.Contains("Error") ? "error" : "success")">
+                @message
+            </div>
+        }
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout { display: flex; min-height: 100vh; font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; position: relative; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); }
+/* === Sidebar === */
+.sidebar { position: fixed; left: 0; top: 0; width: 280px; height: 100vh; background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%); color: white; display: flex; flex-direction: column; padding: 0; box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25); overflow-y: auto; z-index: 100; border-right: 1px solid rgba(255, 255, 255, 0.05); }
+.profile-section { text-align: center; padding: 40px 30px 32px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%); border-bottom: 1px solid rgba(255, 255, 255, 0.1); position: relative; }
+.profile-section::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); border-radius: 2px; }
+.profile-section h3 { margin: 0 0 20px 0; font-size: 1.1rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.9; color: #ffffff; }
+.profile-pic { width: 120px; height: 120px; margin: 0 auto 28px; display: flex; align-items: center; justify-content: center; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; padding: 15px; background: rgba(255, 255, 255, 0.08); border-radius: 50%; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+.profile-pic::before { content: ''; position: absolute; inset: -2px; border-radius: 50%; padding: 2px; background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.4s ease; }
+.profile-pic:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); }
+.profile-pic:hover::before { opacity: 1; }
+.logo-img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3)); }
+.logout-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%); color: #8B0000; border: none; border-radius: 10px; padding: 12px 24px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); letter-spacing: 0.5px; text-transform: uppercase; position: relative; overflow: hidden; }
+.logout-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; border-radius: 50%; background: rgba(139, 0, 0, 0.1); transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s; }
+.logout-btn:hover::before { width: 300px; height: 300px; }
+.logout-btn:hover { background: #ffffff; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); }
+.logout-btn:active { transform: translateY(0); }
+.nav-menu { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 24px 20px; }
+.nav-item { display: flex; align-items: center; background: transparent; color: rgba(255, 255, 255, 0.8); padding: 16px 20px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-left: 3px solid transparent; position: relative; overflow: hidden; }
+.nav-item::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 4px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4)); transform: scaleY(0); transition: transform 0.3s ease; }
+.nav-item::after { content: ''; position: absolute; right: 0; top: 50%; width: 6px; height: 6px; background: rgba(255, 255, 255, 0.6); border-radius: 50%; transform: translate(10px, -50%) scale(0); transition: transform 0.3s ease; }
+.nav-item:hover { color: #ffffff; background: rgba(255, 255, 255, 0.12); padding-left: 28px; box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05); }
+.nav-item:hover::before { transform: scaleY(1); }
+.nav-item:hover::after { transform: translate(-12px, -50%) scale(1); }
+.nav-item.active { color: #ffffff; background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%); padding-left: 28px; box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1); border-left-color: #ffffff; }
+.nav-item.active::before { transform: scaleY(1); }
+.nav-item.active::after { transform: translate(-12px, -50%) scale(1); background: #ffffff; }
+.footer-links { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 24px 30px 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%); position: relative; }
+.footer-links::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); border-radius: 2px; }
+.footer-links a { color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; font-weight: 500; text-decoration: none; transition: all 0.3s ease; padding: 10px 20px; border-radius: 8px; letter-spacing: 0.5px; }
+.footer-links a:hover { color: #ffffff; background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+/* === Main Content === */
+.main-content { flex: 1; margin-left: 280px; padding: 40px 60px; overflow-y: auto; position: relative; min-height: 100vh; }
+.top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%); padding: 24px 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); }
+.top-header h1 { font-size: 2rem; font-weight: 700; display: flex; align-items: center; gap: 14px; margin: 0; color: #ffffff; letter-spacing: -0.02em; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+.top-header .icon { font-size: 2rem; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4)); }
+.email { color: #ffffff; font-weight: 600; font-size: 0.95rem; padding: 8px 16px; background: rgba(255, 255, 255, 0.2); border-radius: 20px; letter-spacing: 0.01em; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+.divider { display: none; }
+/* === Stock Section === */
+.stock-section { margin-bottom: 40px; }
+.section-header { margin-bottom: 28px; }
+.section-header h3 { margin: 0 0 12px 0; font-size: 1.5rem; color: #1a1a2e; font-weight: 700; letter-spacing: -0.02em; }
+.section-header p { color: #6b7280; font-size: 1rem; line-height: 1.6; }
+.stock-group { margin-bottom: 32px; animation: fadeIn 0.5s ease-out; }
+.stock-group h4 { margin: 0 0 20px 0; font-size: 1.3rem; color: #9B1B30; font-weight: 700; letter-spacing: -0.01em; padding-bottom: 12px; border-bottom: 3px solid #f3f4f6; display: flex; align-items: center; gap: 10px; }
+.stock-group h4::before { content: '📦'; font-size: 1.5rem; }
+.stock-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.stock-item { background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+.stock-item:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); border-color: #9B1B30; }
+.stock-item label { display: block; font-weight: 700; font-size: 0.95rem; color: #1a1a2e; margin-bottom: 10px; text-transform: capitalize; }
+.stock-input-group { display: flex; flex-direction: column; gap: 8px; }
+.stock-input { width: 100px; max-width: 120px; padding: 10px 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem; font-weight: 700; color: #1a1a2e; transition: all 0.3s ease; background: white; text-align: center; }
+.stock-input:focus { outline: none; border-color: #9B1B30; box-shadow: 0 0 0 4px rgba(155, 27, 48, 0.15); background: linear-gradient(135deg, #ffffff 0%, #fef3c7 100%); transform: scale(1.02); }
+.stock-info { display: flex; gap: 12px; flex-wrap: wrap; }
+.available-badge { font-size: 0.85rem; color: #059669; font-weight: 600; padding: 4px 10px; background: #d1fae5; border-radius: 6px; }
+.max-badge { font-size: 0.85rem; color: #7c3aed; font-weight: 600; padding: 4px 10px; background: #e9d5ff; border-radius: 6px; }
+.action-bar { margin-top: 40px; padding-top: 40px; border-top: 3px solid #f3f4f6; display: flex; justify-content: center; }
+.btn-primary { padding: 16px 48px; background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 100%); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 6px 20px rgba(155, 27, 48, 0.4); text-transform: uppercase; letter-spacing: 0.5px; }
+.btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #C41E3A 0%, #8B0000 100%); transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 32px rgba(155, 27, 48, 0.5); }
+.btn-primary:active:not(:disabled) { transform: translateY(0) scale(1); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.loading-state { text-align: center; padding: 60px 20px; color: #6b7280; font-size: 1.1rem; }
+.message { margin-top: 24px; padding: 18px 24px; border-radius: 12px; font-weight: 600; text-align: center; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); animation: slideIn 0.3s ease-out; }
+.message.success { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #064e3b; border: 2px solid #10b981; }
+.message.error { background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%); color: #7f1d1d; border: 2px solid #ef4444; }
+/* === Animations === */
+@@keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.stock-group:nth-child(1) { animation-delay: 0.05s; }
+.stock-group:nth-child(2) { animation-delay: 0.15s; }
+.stock-group:nth-child(3) { animation-delay: 0.25s; }
+.stock-group:nth-child(4) { animation-delay: 0.35s; }
+/* === Responsive Design === */
+@@media (max-width: 1024px) { .sidebar { width: 260px; } .main-content { margin-left: 260px; padding: 30px 40px; } .stock-items { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); } }
+@@media (max-width: 768px) { .sidebar { width: 100%; height: auto; position: relative; } .main-content { margin-left: 0; padding: 20px; } .top-header { flex-direction: column; gap: 16px; align-items: flex-start; } .stock-items { grid-template-columns: 1fr; } }
+</style>
+
+
+
+@code {
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private string message = string.Empty;
+    private Dictionary<string, int> tempStock = new();
+    private List<InventoryItem>? inventoryItems = null;
+    private bool isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Console.WriteLine("⚠️ AdminStock: No session email found; redirecting to login.");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        // Check for Administrator role
+        if (string.IsNullOrWhiteSpace(UserSession.Role) || 
+            (!UserSession.Role.Equals("Administrator", StringComparison.OrdinalIgnoreCase) &&
+             !UserSession.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine($"⚠️ AdminStock: User role is '{UserSession.Role}', not Administrator; redirecting.");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedEmail = UserSession.Email;
+        await LoadInventoryAsync();
+        Console.WriteLine($"✅ AdminStock loaded. Logged in as: {displayedEmail}");
+    }
+
+    private async Task LoadInventoryAsync()
+    {
+        try
+        {
+            // Load all inventory items from database (same as student borrow pages)
+            inventoryItems = await Db.InventoryItems
+                .Where(i => i.IsActive)
+                .OrderBy(i => i.Department)
+                .ThenBy(i => i.ItemName)
+                .ToListAsync();
+            
+            // Initialize tempStock with current database values
+            tempStock = inventoryItems.ToDictionary(
+                i => $"{i.Department}|{i.ItemName}",
+                i => i.TotalQuantity
+            );
+            
+            Console.WriteLine($"✅ Loaded {inventoryItems.Count} inventory items from database");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading inventory: {ex.Message}");
+            message = $"Error loading inventory: {ex.Message}";
+        }
+    }
+
+    private void UpdateTempStock(string itemKey, string? value)
+    {
+        if (int.TryParse(value, out int qty) && qty >= 0)
+        {
+            tempStock[itemKey] = qty;
+            StateHasChanged(); // Update UI immediately
+        }
+    }
+
+    private async Task SaveStockChanges()
+    {
+        if (inventoryItems == null) return;
+        
+        isSaving = true;
+        StateHasChanged();
+        
+        try
+        {
+            foreach (var kvp in tempStock)
+            {
+                var parts = kvp.Key.Split('|');
+                if (parts.Length == 2)
+                {
+                    var department = parts[0];
+                    var itemName = parts[1];
+                    
+                    var item = inventoryItems.FirstOrDefault(i => 
+                        i.Department == department && i.ItemName == itemName);
+                    
+                    if (item != null)
+                    {
+                        var oldTotal = item.TotalQuantity;
+                        var oldAvailable = item.AvailableQuantity;
+                        var difference = kvp.Value - oldTotal;
+                        
+                        // Update total quantity
+                        item.TotalQuantity = kvp.Value;
+                        
+                        // Update available quantity (maintain the difference)
+                        item.AvailableQuantity = Math.Max(0, oldAvailable + difference);
+                        
+                        // Ensure available doesn't exceed total
+                        if (item.AvailableQuantity > item.TotalQuantity)
+                        {
+                            item.AvailableQuantity = item.TotalQuantity;
+                        }
+                        
+                        item.LastUpdated = DateTime.Now;
+                    }
+                }
+            }
+            
+            await Db.SaveChangesAsync();
+            message = "✅ Stock quantities updated successfully! Database updated in real-time.";
+            Console.WriteLine($"✅ Stock quantities saved to database");
+            
+            // Reload to get fresh data
+            await LoadInventoryAsync();
+            StateHasChanged();
+
+            await Task.Delay(3000);
+            message = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            message = $"❌ Error: {ex.Message}";
+            Console.WriteLine($"❌ Error saving stock: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+            Navigation.NavigateTo("/", forceLoad: false);
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}
+
+

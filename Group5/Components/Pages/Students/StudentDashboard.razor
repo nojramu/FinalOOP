@@ -1,0 +1,930 @@
+@page "/studentdashboard"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject Group5.Data.AppDbContext Db
+@using Group5.Shared
+@using Group5.Models
+@using Group5.Data
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Hello, @displayedUsername!</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/studentdashboard" class="nav-item active">Dashboard</a>
+            <a href="/studentborrow" class="nav-item">Borrow</a>
+            <a href="/cart" class="nav-item">Cart</a>
+            <a href="/studenthistory" class="nav-item">History</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">📊</span> DASHBOARD</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        <!-- Notice Section -->
+        <section class="notice">
+            <h3>📢 Notice:</h3>
+            <p>@UserDatabase.Notice</p>
+        </section>
+
+        <!-- Status Update Section -->
+        <section class="status-section">
+            <h3>📋 Status</h3>
+
+            <!-- Pending Forms -->
+            @if (PendingForms.Any())
+            {
+                <div class="status-card pending">
+                    <h4>🕒 Pending Forms (@PendingForms.Count)</h4>
+                    @foreach (var form in PendingForms)
+                    {
+                        <div class="form-item">
+                            <div class="form-header">
+                                <strong>Ref:</strong> <code>@form.ReferenceCode</code> | 
+                                <strong>Submitted:</strong> @form.SubmittedAt.ToString("MM/dd HH:mm")
+                            </div>
+                            @if (form.Items.Any())
+                            {
+                                <button class="toggle-btn" @onclick="@(() => ToggleExpand(form.Id))">
+                                    @(expandedFormId == form.Id ? "▲ Hide Items" : "▼ View Items")
+                                </button>
+                                @if (expandedFormId == form.Id)
+                                {
+                                    <div class="form-items">
+                                        <strong>Items:</strong>
+                                        @foreach (var group in form.Items.GroupBy(i => i.Department))
+                                        {
+                                            <div><em>@group.Key:</em> @string.Join(", ", group.Select(i => $"{i.ItemName}×{i.Quantity}"))</div>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Currently Borrowed -->
+            @if (CurrentlyBorrowedForms.Any())
+            {
+                <div class="status-card borrowed">
+                    <h4>📦 Currently Borrowed (@CurrentlyBorrowedForms.Count form(s))</h4>
+                    @foreach (var form in CurrentlyBorrowedForms)
+                    {
+                        <div class="form-item">
+                            <div class="form-header">
+                                <strong>Ref:</strong> <code>@form.ReferenceCode</code> | 
+                                <strong>Issued:</strong> @form.ProcessedAt?.ToString("MM/dd HH:mm")
+                            </div>
+                            @if (form.Items.Any())
+                            {
+                                <button class="toggle-btn" @onclick="@(() => ToggleExpand(form.Id))">
+                                    @(expandedFormId == form.Id ? "▲ Hide Items" : "▼ View Items")
+                                </button>
+                                @if (expandedFormId == form.Id)
+                                {
+                                    <div class="form-items">
+                                        <strong>Items:</strong>
+                                        @foreach (var group in form.Items.GroupBy(i => i.Department))
+                                        {
+                                            <div><em>@group.Key:</em> @string.Join(", ", group.Select(i => $"{i.ItemName}×{i.Quantity}"))</div>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (!PendingForms.Any() && !CurrentlyBorrowedForms.Any())
+            {
+                <p class="empty-status">📭 No pending forms or borrowed items.</p>
+            }
+        </section>
+
+        <!-- Notifications Section -->
+        <section class="notifications-section">
+            <h3>🔔 Notifications</h3>
+            @if (latestApproval != null && !UserDatabase.IsDismissed(UserSession.Email, latestApproval.Id))
+            {
+                <div class="notification-card approval">
+                    <strong>🎉 Your form has been approved!</strong><br />
+                    Reference: <code>@latestApproval.ReferenceCode</code><br />
+                    Approved by: @latestApproval.ProfessorEmail on @latestApproval.ProcessedAt?.ToString("yyyy-MM-dd HH:mm")<br />
+                    <button class="dismiss-btn" @onclick="@(() => DismissBanner(latestApproval.Id))">OK</button>
+                </div>
+            }
+            else if (latestDisapproval != null && !UserDatabase.IsDismissed(UserSession.Email, latestDisapproval.Id))
+            {
+                <div class="notification-card disapproval">
+                    <strong>⚠️ Your form has been disapproved.</strong><br />
+                    Reference: <code>@latestDisapproval.ReferenceCode</code><br />
+                    Disapproved by: @latestDisapproval.ProfessorEmail on @latestDisapproval.ProcessedAt?.ToString("yyyy-MM-dd HH:mm")<br />
+                    <button class="dismiss-btn" @onclick="@(() => DismissBanner(latestDisapproval.Id))">OK</button>
+                </div>
+            }
+            else
+            {
+                <p class="empty-notification">No recent notifications.</p>
+            }
+        </section>
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout {
+    display: flex;
+    min-height: 100vh;
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+}
+
+/* === Sidebar === */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+    z-index: 100;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.profile-section {
+    text-align: center;
+    padding: 40px 30px 32px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.profile-section::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.profile-section h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.9;
+    color: #ffffff;
+}
+
+.profile-pic {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.profile-pic::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.profile-pic:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.profile-pic:hover::before {
+    opacity: 1;
+}
+
+.logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+    color: #8B0000;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(139, 0, 0, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.logout-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.logout-btn:hover {
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+}
+
+.nav-menu {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 24px 20px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 3px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    transform: translate(10px, -50%) scale(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    padding-left: 28px;
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+.nav-item:hover::before {
+    transform: scaleY(1);
+}
+
+.nav-item:hover::after {
+    transform: translate(-12px, -50%) scale(1);
+}
+
+.nav-item.active {
+    color: #ffffff;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    padding-left: 28px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1);
+    border-left-color: #ffffff;
+}
+
+.nav-item.active::before {
+    transform: scaleY(1);
+}
+
+.nav-item.active::after {
+    transform: translate(-12px, -50%) scale(1);
+    background: #ffffff;
+}
+
+.footer-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 24px 30px 32px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%);
+    position: relative;
+}
+
+.footer-links::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.footer-links a {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    padding: 10px 20px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+}
+
+.footer-links a:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+/* === Main Content === */
+.main-content {
+    flex: 1;
+    margin-left: 280px;
+    padding: 40px 60px;
+    overflow-y: auto;
+    position: relative;
+    min-height: 100vh;
+}
+
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%);
+    padding: 24px 32px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.top-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.top-header .icon {
+    font-size: 2rem;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+}
+
+.email {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    letter-spacing: 0.01em;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.divider {
+    display: none;
+}
+
+/* === Notice Section === */
+.notice {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #1a1a2e;
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 24px rgba(251, 191, 36, 0.25);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    transition: all 0.3s ease;
+}
+
+.notice:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(251, 191, 36, 0.35);
+}
+
+.notice h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #7c2d12;
+}
+
+.notice p {
+    margin: 0;
+    line-height: 1.6;
+    font-size: 1rem;
+    color: #78350f;
+    font-weight: 500;
+}
+
+/* === Status Section === */
+.status-section {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e9ecef;
+}
+
+.status-section h3 {
+    margin: 0 0 24px 0;
+    font-size: 1.5rem;
+    color: #1a1a2e;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.status-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.status-card.pending {
+    border-left: 5px solid #fbbf24;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.status-card.borrowed {
+    border-left: 5px solid #10b981;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.status-card h4 {
+    margin: 0 0 20px 0;
+    font-size: 1.15rem;
+    color: #1a1a2e;
+    font-weight: 700;
+}
+
+.form-item {
+    background: white;
+    padding: 18px 20px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.form-item:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.form-header {
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+    color: #374151;
+    font-weight: 500;
+}
+
+.form-header code {
+    background: #f3f4f6;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    color: #8B0000;
+    font-weight: 600;
+}
+
+.toggle-btn {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.toggle-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.toggle-btn:active {
+    transform: translateY(0);
+}
+
+.form-items {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.form-items div {
+    margin: 6px 0;
+    line-height: 1.6;
+}
+
+.empty-status {
+    text-align: center;
+    color: #9ca3af;
+    padding: 32px;
+    font-style: italic;
+    font-size: 1rem;
+}
+
+/* === Notifications Section === */
+.notifications-section {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.notifications-section h3 {
+    margin: 0 0 24px 0;
+    font-size: 1.5rem;
+    color: #1a1a2e;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.notification-card {
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.notification-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.notification-card.approval {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border: 2px solid #10b981;
+    color: #064e3b;
+}
+
+.notification-card.disapproval {
+    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+    border: 2px solid #ef4444;
+    color: #7f1d1d;
+}
+
+.notification-card strong {
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.notification-card code {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-weight: 600;
+}
+
+.dismiss-btn {
+    margin-top: 16px;
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 24px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.notification-card.disapproval .dismiss-btn {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.dismiss-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.notification-card.disapproval .dismiss-btn:hover {
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.dismiss-btn:active {
+    transform: translateY(0);
+}
+
+.empty-notification {
+    text-align: center;
+    color: #9ca3af;
+    padding: 24px;
+    font-style: italic;
+    font-size: 1rem;
+}
+
+/* === Responsive Design === */
+@@media (max-width: 1024px) {
+    .sidebar {
+        width: 260px;
+    }
+    
+    .main-content {
+        margin-left: 260px;
+        padding: 30px 40px;
+    }
+}
+
+@@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    
+    .top-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .profile-pic {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .nav-item {
+        font-size: 0.9rem;
+        padding: 14px 18px;
+    }
+}
+
+/* === Animations === */
+@@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.status-card, .notification-card, .notice {
+    animation: fadeIn 0.5s ease-out;
+}
+</style>
+
+@code {
+    private string displayedUsername = string.Empty;
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private int? expandedFormId = null;
+
+    private List<BorrowForm> PendingForms = new();
+    private List<BorrowForm> CurrentlyBorrowedForms = new();
+    private BorrowForm? latestApproval = null;
+    private BorrowForm? latestDisapproval = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Console.WriteLine("⚠️ StudentDashboard: No session email found; redirecting to login (/).");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedUsername = UserSession.Username;
+        displayedEmail = UserSession.Email;
+        
+        // Load borrow forms from database
+        await LoadFormsAsync();
+        
+        Console.WriteLine($"✅ StudentDashboard loaded. Logged in as: {displayedUsername}");
+    }
+
+    private async Task LoadFormsAsync()
+    {
+        try
+        {
+            var allForms = await Db.BorrowForms
+                .Include(f => f.Items)
+                .Where(f => f.StudentEmail == UserSession.Email)
+                .OrderByDescending(f => f.SubmittedAt)
+                .ToListAsync();
+
+            PendingForms = allForms
+                .Where(f => f.IsApproved == null)
+                .ToList();
+
+            CurrentlyBorrowedForms = allForms
+                .Where(f => f.IsApproved == true && f.IsIssued == true && f.IsReturned == false)
+                .OrderByDescending(f => f.ProcessedAt)
+                .ToList();
+
+            latestApproval = allForms
+                .Where(f => f.IsApproved == true && !UserDatabase.IsDismissed(UserSession.Email, f.Id))
+                .OrderByDescending(f => f.ProcessedAt)
+                .FirstOrDefault();
+
+            latestDisapproval = allForms
+                .Where(f => f.IsApproved == false && !UserDatabase.IsDismissed(UserSession.Email, f.Id))
+                .OrderByDescending(f => f.ProcessedAt)
+                .FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading forms: {ex.Message}");
+        }
+    }
+
+    private void ToggleExpand(int formId)
+    {
+        expandedFormId = expandedFormId == formId ? null : formId;
+    }
+
+    private void DismissBanner(int formId)
+    {
+        UserDatabase.Dismiss(UserSession.Email, formId);
+        StateHasChanged();
+    }
+
+    private async Task LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine("🚪 StudentDashboard: LogoutAsync invoked (SERVER side). Clearing session...");
+
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+
+            try
+            {
+                await JS.InvokeVoidAsync("console.log", "🚪 StudentDashboard: Logout clicked (CLIENT side) - clearing session & redirecting to /");
+            }
+            catch
+            {
+                // ignore any JS error here
+            }
+
+            try
+            {
+                Navigation.NavigateTo("/", forceLoad: false);
+            }
+            catch (Exception navEx)
+            {
+                Console.WriteLine($"⚠️ Navigation.NavigateTo threw: {navEx.Message}");
+            }
+
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"⚠️ Hard redirect via JS failed: {jsEx.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ LogoutAsync error: {ex.Message}");
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch { }
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}

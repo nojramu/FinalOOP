@@ -1,0 +1,721 @@
+@page "/professordashboard"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject Group5.Data.AppDbContext Db
+@using Group5.Shared
+@using Group5.Models
+@using Group5.Data
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Hello, @displayedUsername!</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/professordashboard" class="nav-item active">Dashboard</a>
+            <a href="/professorforms" class="nav-item">Pending Forms</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">📊</span> PROFESSOR DASHBOARD</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        <!-- Notice Section -->
+        <section class="notice">
+            <h3>📢 Notice:</h3>
+            <p>@UserDatabase.Notice</p>
+        </section>
+
+        <!-- Statistics Section -->
+        <section class="stats-section">
+            <h3>Overview</h3>
+            <div class="stats-grid">
+                <div class="stat-card pending">
+                    <div class="stat-number">@MyPendingForms.Count</div>
+                    <div class="stat-label">Pending Forms</div>
+                </div>
+                <div class="stat-card approved">
+                    <div class="stat-number">@ApprovedForms.Count</div>
+                    <div class="stat-label">Approved Forms</div>
+                </div>
+                <div class="stat-card disapproved">
+                    <div class="stat-number">@DisapprovedForms.Count</div>
+                    <div class="stat-label">Disapproved Forms</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Actions Section -->
+        <section class="quick-actions">
+            <h3>Quick Actions</h3>
+            <div class="actions-grid">
+                <a href="/professorforms" class="action-card">
+                    <div class="action-icon">📝</div>
+                    <div class="action-title">Review Forms</div>
+                    <div class="action-description">Approve or disapprove student borrow requests</div>
+                </a>
+            </div>
+        </section>
+
+        <!-- Recent Forms Section -->
+        @if (MyPendingForms.Any())
+        {
+            <section class="recent-section">
+                <h3>Recent Pending Forms</h3>
+                <div class="forms-list">
+                    @foreach (var form in MyPendingForms.Take(5))
+                    {
+                        <div class="form-card">
+                            <div class="form-header">
+                                <span class="ref-code">Ref: @form.ReferenceCode</span>
+                                <span class="form-date">@form.SubmittedAt.ToString("MM/dd HH:mm")</span>
+                            </div>
+                            <div class="form-body">
+                                <div><strong>Student:</strong> @form.StudentName (@form.StudentNumber)</div>
+                                <div><strong>Subject:</strong> @form.SubjectCode</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                @if (MyPendingForms.Count > 5)
+                {
+                    <p class="view-all">
+                        <a href="/professorforms">View all @MyPendingForms.Count pending forms →</a>
+                    </p>
+                }
+            </section>
+        }
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout {
+    display: flex;
+    min-height: 100vh;
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+}
+
+/* === Sidebar === */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+    z-index: 100;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.profile-section {
+    text-align: center;
+    padding: 40px 30px 32px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.profile-section::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.profile-section h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.9;
+    color: #ffffff;
+}
+
+.profile-pic {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.profile-pic::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.profile-pic:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.profile-pic:hover::before {
+    opacity: 1;
+}
+
+.logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+    color: #8B0000;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(139, 0, 0, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.logout-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.logout-btn:hover {
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+}
+
+.nav-menu {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 24px 20px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 3px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    transform: translate(10px, -50%) scale(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    padding-left: 28px;
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+.nav-item:hover::before {
+    transform: scaleY(1);
+}
+
+.nav-item:hover::after {
+    transform: translate(-12px, -50%) scale(1);
+}
+
+.nav-item.active {
+    color: #ffffff;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    padding-left: 28px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1);
+    border-left-color: #ffffff;
+}
+
+.nav-item.active::before {
+    transform: scaleY(1);
+}
+
+.nav-item.active::after {
+    transform: translate(-12px, -50%) scale(1);
+    background: #ffffff;
+}
+
+.footer-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 24px 30px 32px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%);
+    position: relative;
+}
+
+.footer-links::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.footer-links a {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    padding: 10px 20px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+}
+
+.footer-links a:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+/* === Main Content === */
+.main-content {
+    flex: 1;
+    margin-left: 280px;
+    padding: 40px 60px;
+    overflow-y: auto;
+    position: relative;
+    min-height: 100vh;
+}
+
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%);
+    padding: 24px 32px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.top-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.top-header .icon {
+    font-size: 2rem;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+}
+
+.email {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    letter-spacing: 0.01em;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.divider {
+    display: none;
+}
+
+/* === Notice Section === */
+.notice {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #1a1a2e;
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 24px rgba(251, 191, 36, 0.25);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    transition: all 0.3s ease;
+}
+
+.notice:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(251, 191, 36, 0.35);
+}
+
+.notice h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #7c2d12;
+}
+
+.notice p {
+    margin: 0;
+    line-height: 1.6;
+    font-size: 1rem;
+    color: #78350f;
+    font-weight: 500;
+}
+
+/* Stats Section */
+.stats-section {
+    margin-bottom: 30px;
+}
+
+.stats-section h3 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.stat-card {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    border-left: 4px solid #ddd;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card.pending {
+    border-left-color: #ffc107;
+    background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%);
+}
+
+.stat-card.approved {
+    border-left-color: #28a745;
+    background: linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%);
+}
+
+.stat-card.disapproved {
+    border-left-color: #dc3545;
+    background: linear-gradient(135deg, #ffebee 0%, #ffffff 100%);
+}
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.stat-label {
+    font-size: 1rem;
+    color: #666;
+    font-weight: 600;
+}
+
+/* Quick Actions */
+.quick-actions {
+    margin-bottom: 30px;
+}
+
+.quick-actions h3 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.action-card {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+}
+
+.action-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    border-color: #a00000;
+}
+
+.action-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.action-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.action-description {
+    color: #666;
+    font-size: 0.95rem;
+}
+
+/* Recent Section */
+.recent-section {
+    margin-bottom: 30px;
+}
+
+.recent-section h3 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.forms-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #ffc107;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.form-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.ref-code {
+    font-weight: bold;
+    color: #a00000;
+    font-size: 1.1rem;
+}
+
+.form-date {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.form-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #333;
+}
+
+.view-all {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.view-all a {
+    color: #a00000;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 1.1rem;
+}
+
+.view-all a:hover {
+    text-decoration: underline;
+}
+</style>
+
+@code {
+    private string displayedUsername = string.Empty;
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private List<BorrowForm> MyPendingForms = new();
+    private List<BorrowForm> ApprovedForms = new();
+    private List<BorrowForm> DisapprovedForms = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedUsername = UserSession.Username;
+        displayedEmail = UserSession.Email;
+        await LoadFormsAsync();
+    }
+
+    private async Task LoadFormsAsync()
+    {
+        try
+        {
+            var allForms = await Db.BorrowForms
+                .Include(f => f.Items)
+                .Where(f => f.ProfessorEmail == displayedEmail)
+                .OrderByDescending(f => f.SubmittedAt)
+                .ToListAsync();
+
+            MyPendingForms = allForms.Where(f => f.IsApproved == null).ToList();
+            ApprovedForms = allForms.Where(f => f.IsApproved == true).ToList();
+            DisapprovedForms = allForms.Where(f => f.IsApproved == false).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading forms: {ex.Message}");
+        }
+    }
+
+    private void LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+            Navigation.NavigateTo("/", forceLoad: false);
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}
+

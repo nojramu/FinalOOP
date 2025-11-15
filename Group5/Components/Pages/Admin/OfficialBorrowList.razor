@@ -1,0 +1,494 @@
+@page "/officialborrowlist"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@using Group5.Shared
+@using Group5.Data
+@using Group5.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Hello, @displayedUsername!</h3>
+            <div class="profile-pic">
+                <div class="user-icon">👤</div>
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/studentdashboard" class="nav-item">Dashboard</a>
+            <a href="/studentborrow" class="nav-item">Borrow</a>
+            <a href="/cart" class="nav-item">Cart</a>
+            <a href="/studenthistory" class="nav-item">History</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">📋</span> OFFICIAL BORROW LIST</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        <div class="official-list-section">
+            <h2 class="official-title">OFFICIAL BORROW LIST</h2>
+
+            @if (officialRecords == null)
+            {
+                <p><em>Loading...</em></p>
+            }
+            else if (!officialRecords.Any())
+            {
+                <div class="empty-records">
+                    <p>No borrow records yet.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var record in officialRecords.OrderByDescending(r => r.BorrowDate))
+                {
+                    <div class="borrow-record">
+                        <div class="borrower-info">
+                            <div class="info-row">
+                                <div class="info-item">
+                                    <span class="info-label">Name:</span>
+                                    <span class="info-value">@record.StudentName</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Reference Code:</span>
+                                    <span class="info-value">@record.ReferenceCode</span>
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <div class="info-item">
+                                    <span class="info-label">Student No:</span>
+                                    <span class="info-value">@record.StudentNumber</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Professor In Charge:</span>
+                                    <span class="info-value">@record.ProfessorInCharge</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="borrow-table-container">
+                            <table class="borrow-table">
+                                <thead>
+                                    <tr>
+                                        <th>Department</th>
+                                        <th>Item Name</th>
+                                        <th>Quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in record.BorrowedItems)
+                                    {
+                                        <tr>
+                                            <td>@item.Department</td>
+                                            <td>@item.ItemName</td>
+                                            <td>@item.Quantity</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout {
+    display: flex;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+/* === Sidebar === */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 220px;
+    height: 100vh;
+    background: linear-gradient(to bottom, #a00000, #7a0000);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 25px 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.profile-section {
+    text-align: center;
+    margin-bottom: 35px;
+}
+
+.profile-section h3 {
+    margin: 0 0 18px 0;
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.profile-pic {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.profile-pic:hover {
+    transform: scale(1.05);
+}
+
+.logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.logout-btn {
+    background: white;
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.logout-btn:hover:not(:disabled) {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.logout-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.nav-menu {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 18px 0;
+}
+
+.nav-item {
+    display: block;
+    background: transparent;
+    color: white;
+    padding: 16px 18px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1.3rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+}
+
+.nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left-color: rgba(255, 255, 255, 0.5);
+    transform: translateX(5px);
+}
+
+.nav-item.active {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-left-color: white;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.footer-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.footer-links a {
+    color: white;
+    font-size: 1rem;
+    text-decoration: underline;
+    transition: opacity 0.3s ease;
+}
+
+.footer-links a:hover {
+    opacity: 0.8;
+}
+
+/* === Main Content === */
+.main-content {
+    flex: 1;
+    margin-left: 220px;
+    padding: 30px 60px;
+    background-color: #fff;
+    overflow-y: auto;
+    position: relative;
+    min-height: 100vh;
+}
+
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.top-header h1 {
+    font-size: 2.2rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    color: #333;
+}
+
+.top-header .icon {
+    font-size: 2rem;
+}
+
+.email {
+    color: #666;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.divider {
+    border: none;
+    height: 3px;
+    background: linear-gradient(to right, #a00000, #c00000);
+    margin: 0 0 30px 0;
+    border-radius: 2px;
+}
+
+/* === Official List Section === */
+.official-list-section {
+    background-color: #fff5f5;
+    border: 1px solid #a00000;
+    border-radius: 12px;
+    padding: 30px;
+    min-height: 500px;
+}
+
+.official-title {
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-decoration: underline;
+    margin: 0 0 30px 0;
+    color: #333;
+}
+
+.empty-records {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+    font-size: 1.2rem;
+}
+
+/* === Borrow Record === */
+.borrow-record {
+    background: white;
+    border: 2px solid #a00000;
+    border-radius: 10px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px rgba(160, 0, 0, 0.1);
+}
+
+.borrower-info {
+    margin-bottom: 20px;
+}
+
+.info-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.info-label {
+    font-weight: bold;
+    font-size: 0.95rem;
+    color: #666;
+}
+
+.info-value {
+    font-size: 1rem;
+    color: #333;
+    padding: 8px 12px;
+    background: #f8f8f8;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+
+/* === Borrow Table === */
+.borrow-table-container {
+    margin-top: 20px;
+}
+
+.borrow-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border: 2px solid #a00000;
+}
+
+.borrow-table thead {
+    background: linear-gradient(135deg, #a00000, #c00000);
+    color: white;
+}
+
+.borrow-table th {
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 1rem;
+    border-bottom: 2px solid #7a0000;
+}
+
+.borrow-table tbody tr {
+    border-bottom: 1px solid #ddd;
+}
+
+.borrow-table tbody tr:hover {
+    background-color: #f8f8f8;
+}
+
+.borrow-table td {
+    padding: 15px;
+    font-size: 0.95rem;
+    color: #333;
+}
+</style>
+
+@code {
+    [Inject] private AppDbContext Db { get; set; } = null!;
+    
+    private string displayedUsername = string.Empty;
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private List<OfficialBorrowListRecord>? officialRecords;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Console.WriteLine("⚠️ OfficialBorrowList: No session email found; redirecting to login (/).");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedUsername = UserSession.Username;
+        displayedEmail = UserSession.Email;
+
+        // Load official borrow records for this user
+        officialRecords = await Db.OfficialBorrowListRecords
+            .Include(r => r.BorrowedItems)
+            .Where(r => r.UserEmail == UserSession.Email)
+            .OrderByDescending(r => r.BorrowDate)
+            .ToListAsync();
+
+        Console.WriteLine($"✅ OfficialBorrowList loaded. Logged in as: {displayedUsername}");
+    }
+
+    private async Task LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine("🚪 OfficialBorrowList: LogoutAsync invoked (SERVER side). Clearing session...");
+
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+
+            try
+            {
+                await JS.InvokeVoidAsync("console.log", "🚪 OfficialBorrowList: Logout clicked (CLIENT side) - clearing session & redirecting to /");
+            }
+            catch
+            {
+                // ignore any JS error here
+            }
+
+            try
+            {
+                Navigation.NavigateTo("/", forceLoad: false);
+            }
+            catch (Exception navEx)
+            {
+                Console.WriteLine($"⚠️ Navigation.NavigateTo threw: {navEx.Message}");
+            }
+
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"⚠️ Hard redirect via JS failed: {jsEx.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ LogoutAsync error: {ex.Message}");
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch { }
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}
+

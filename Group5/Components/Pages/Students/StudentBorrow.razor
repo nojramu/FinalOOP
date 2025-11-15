@@ -1,0 +1,676 @@
+@page "/studentborrow"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@using Group5.Shared
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Hello, @displayedUsername!</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/studentdashboard" class="nav-item">Dashboard</a>
+            <a href="/studentborrow" class="nav-item active">Borrow</a>
+            <a href="/cart" class="nav-item">Cart</a>
+            <a href="/studenthistory" class="nav-item">History</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">🏷️</span> BORROW</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        <section class="notice">
+            <h3>📢 Notice:</h3>
+            <p>
+                Please select a toolroom below to browse available items. Add items to your cart, then submit a borrow request for professor approval. Ensure all information is accurate before submitting your request. Items must be returned on time to avoid penalties.
+            </p>
+        </section>
+
+        <section class="toolrooms">
+            <a href="/electronics" class="toolroom-card">
+                <h3>ELECTRONICS ENGINEERING TOOLROOM</h3>
+                <img src="/images/Apparatus/Electronics/Electronics Tool/ECE-Oscilloscope.png" alt="Electronics Icon" />
+            </a>
+
+            <a href="/electrical" class="toolroom-card">
+                <h3>ELECTRICAL ENGINEERING TOOLROOM</h3>
+                <img src="/images/Apparatus/Electrical/Electrical Tools/EE-Multimeter.png" alt="Electrical Icon" />
+            </a>
+
+            <a href="/physics" class="toolroom-card">
+                <h3>PHYSICS LABORATORY TOOLROOM</h3>
+                <img src="/images/Apparatus/Physics/Physics Tool/Physics-Vernier Caliper.png" alt="Physics Icon" />
+            </a>
+
+            <a href="/chemistry" class="toolroom-card">
+                <h3>CHEMISTRY LABORATORY TOOLROOM</h3>
+                <img src="/images/Apparatus/Chemistry/CHEM-BEAKER.png" alt="Chemistry Icon" />
+            </a>
+
+            <a href="/civil" class="toolroom-card">
+                <h3>CIVIL ENGINEERING TOOLROOM</h3>
+                <img src="/images/Apparatus/Civil Engineering/CE tools/CE-Theodolite.png" alt="Civil Icon" />
+            </a>
+        </section>
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout {
+    display: flex;
+    min-height: 100vh;
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+}
+
+/* === Sidebar === */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+    z-index: 100;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.profile-section {
+    text-align: center;
+    padding: 40px 30px 32px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.profile-section::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.profile-section h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.9;
+    color: #ffffff;
+}
+
+.profile-pic {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.profile-pic::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.profile-pic:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.profile-pic:hover::before {
+    opacity: 1;
+}
+
+.logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+    color: #8B0000;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(139, 0, 0, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.logout-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.logout-btn:hover {
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+}
+
+.nav-menu {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 24px 20px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 3px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    transform: translate(10px, -50%) scale(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    padding-left: 28px;
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+.nav-item:hover::before {
+    transform: scaleY(1);
+}
+
+.nav-item:hover::after {
+    transform: translate(-12px, -50%) scale(1);
+}
+
+.nav-item.active {
+    color: #ffffff;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    padding-left: 28px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1);
+    border-left-color: #ffffff;
+}
+
+.nav-item.active::before {
+    transform: scaleY(1);
+}
+
+.nav-item.active::after {
+    transform: translate(-12px, -50%) scale(1);
+    background: #ffffff;
+}
+
+.footer-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 24px 30px 32px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%);
+    position: relative;
+}
+
+.footer-links::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.footer-links a {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    padding: 10px 20px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+}
+
+.footer-links a:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+/* === Main Content === */
+.main-content {
+    flex: 1;
+    margin-left: 280px;
+    padding: 40px 60px;
+    overflow-y: auto;
+    position: relative;
+    min-height: 100vh;
+}
+
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%);
+    padding: 24px 32px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.top-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.top-header .icon {
+    font-size: 2rem;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+}
+
+.email {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    letter-spacing: 0.01em;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.divider {
+    display: none;
+}
+
+/* === Notice Section === */
+.notice {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #1a1a2e;
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 24px rgba(251, 191, 36, 0.25);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    transition: all 0.3s ease;
+}
+
+.notice:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(251, 191, 36, 0.35);
+}
+
+.notice h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #7c2d12;
+}
+
+.notice p {
+    margin: 0;
+    line-height: 1.6;
+    font-size: 1rem;
+    color: #78350f;
+    font-weight: 500;
+}
+
+/* === Toolroom Cards === */
+.toolrooms {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+.toolroom-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    color: #1a1a2e;
+    border-radius: 16px;
+    padding: 32px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-decoration: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border: 2px solid #e9ecef;
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.toolroom-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #8B0000 0%, #6B0000 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: 0;
+}
+
+.toolroom-card:hover::before {
+    opacity: 1;
+}
+
+.toolroom-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(139, 0, 0, 0.25);
+    border-color: transparent;
+}
+
+.toolroom-card h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.4;
+    flex: 1;
+    margin-right: 20px;
+    position: relative;
+    z-index: 1;
+    transition: all 0.4s ease;
+    letter-spacing: -0.01em;
+}
+
+.toolroom-card:hover h3 {
+    color: white;
+}
+
+.toolroom-card img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    position: relative;
+    z-index: 1;
+    transition: all 0.4s ease;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+}
+
+.toolroom-card:hover img {
+    filter: brightness(0) invert(1) drop-shadow(0 4px 12px rgba(255, 255, 255, 0.3));
+    transform: scale(1.1);
+}
+
+/* === Responsive Design === */
+@@media (max-width: 1024px) {
+    .sidebar {
+        width: 260px;
+    }
+    
+    .main-content {
+        margin-left: 260px;
+        padding: 30px 40px;
+    }
+    
+    .toolrooms {
+        grid-template-columns: 1fr;
+    }
+}
+
+@@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    
+    .top-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .profile-pic {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .nav-item {
+        font-size: 0.9rem;
+        padding: 14px 18px;
+    }
+    
+    .toolrooms {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* === Animations === */
+@@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.toolroom-card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+.toolroom-card:nth-child(1) { animation-delay: 0.1s; }
+.toolroom-card:nth-child(2) { animation-delay: 0.2s; }
+.toolroom-card:nth-child(3) { animation-delay: 0.3s; }
+.toolroom-card:nth-child(4) { animation-delay: 0.4s; }
+.toolroom-card:nth-child(5) { animation-delay: 0.5s; }
+</style>
+
+@code {
+    private string displayedUsername = string.Empty;
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+
+    protected override void OnInitialized()
+    {
+        // If no email in session, redirect to login immediately
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Console.WriteLine("⚠️ StudentBorrow: No session email found; redirecting to login (/).");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedUsername = UserSession.Username;
+        displayedEmail = UserSession.Email;
+        Console.WriteLine($"✅ StudentBorrow loaded. Logged in as: {displayedUsername}");
+    }
+
+    private async Task LogoutAsync()
+    {
+        // immediate UI feedback
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            // SERVER-SIDE log
+            Console.WriteLine("🚪 StudentBorrow: LogoutAsync invoked (SERVER side). Clearing session...");
+
+            // Clear session server-side
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+
+            // CLIENT-SIDE log (browser console)
+            try
+            {
+                await JS.InvokeVoidAsync("console.log", "🚪 StudentBorrow: Logout clicked (CLIENT side) - clearing session & redirecting to /");
+            }
+            catch
+            {
+                // ignore any JS error here, we'll still redirect below
+            }
+
+            // Try normal Blazor navigation first (SPA style)
+            try
+            {
+                Navigation.NavigateTo("/", forceLoad: false);
+            }
+            catch (Exception navEx)
+            {
+                Console.WriteLine($"⚠️ Navigation.NavigateTo threw: {navEx.Message}");
+            }
+
+            // Fallback: force a hard browser redirect (guaranteed)
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"⚠️ Hard redirect via JS failed: {jsEx.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ LogoutAsync error: {ex.Message}");
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch { /* swallow */ }
+        }
+        finally
+        {
+            // reset UI if redirect didn't happen immediately
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}
+

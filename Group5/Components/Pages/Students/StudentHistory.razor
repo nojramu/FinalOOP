@@ -1,0 +1,778 @@
+@page "/studenthistory"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject Group5.Data.AppDbContext Db
+@using Group5.Shared
+@using Group5.Models
+@using Group5.Data
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Hello, @displayedUsername!</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/studentdashboard" class="nav-item">Dashboard</a>
+            <a href="/studentborrow" class="nav-item">Borrow</a>
+            <a href="/cart" class="nav-item">Cart</a>
+            <a href="/studenthistory" class="nav-item active">History</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">📋</span> BORROW HISTORY</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        <section class="history-section">
+            @if (MyHistoryForms.Any())
+            {
+                <div class="history-list">
+                    @foreach (var form in MyHistoryForms)
+                    {
+                        var statusClass = GetStatusClass(form);
+                        var statusText = GetStatusText(form);
+
+                        <div class="history-card @statusClass">
+                            <div class="history-header">
+                                <div class="reference-code">
+                                    <strong>Reference:</strong> <code>@form.ReferenceCode</code>
+                                </div>
+                                <div class="status-badge @statusClass">@statusText</div>
+                            </div>
+
+                            <div class="history-details">
+                                <div class="detail-row">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Professor Assigned:</span>
+                                        <span class="detail-value">@form.ProfessorEmail</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Submitted:</span>
+                                        <span class="detail-value">@form.SubmittedAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                </div>
+
+                                @if (form.ProcessedAt.HasValue)
+                                {
+                                    <div class="detail-row">
+                                        <div class="detail-item">
+                                            <span class="detail-label">Processed:</span>
+                                            <span class="detail-value">@form.ProcessedAt.Value.ToString("yyyy-MM-dd HH:mm")</span>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(form.ProcessedBy))
+                                        {
+                                            <div class="detail-item">
+                                                <span class="detail-label">Processed By:</span>
+                                                <span class="detail-value">@form.ProcessedBy</span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            @if (form.Items.Any())
+                            {
+                                <div class="items-section">
+                                    <strong>Borrowed Items:</strong>
+                                    <ul class="items-list">
+                                        @foreach (var item in form.Items)
+                                        {
+                                            <li>@item.Department: @item.ItemName × @item.Quantity</li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+
+                            <div class="timeline">
+                                <div class="timeline-item completed">
+                                    <span class="timeline-icon">✓</span>
+                                    <span class="timeline-text">Submitted</span>
+                                </div>
+                                <div class="timeline-item @(form.IsApproved.HasValue ? "completed" : "")">
+                                    <span class="timeline-icon">@(form.IsApproved == true ? "✓" : form.IsApproved == false ? "✗" : "○")</span>
+                                    <span class="timeline-text">@(form.IsApproved == true ? "Approved" : form.IsApproved == false ? "Disapproved" : "Awaiting Approval")</span>
+                                </div>
+                                @if (form.IsApproved == true)
+                                {
+                                    <div class="timeline-item @(form.IsIssued ? "completed" : "")">
+                                        <span class="timeline-icon">@(form.IsIssued ? "✓" : "○")</span>
+                                        <span class="timeline-text">@(form.IsIssued ? "Issued" : "Awaiting Issue")</span>
+                                    </div>
+                                    @if (form.IsIssued)
+                                    {
+                                        <div class="timeline-item @(form.IsReturned ? "completed" : "")">
+                                            <span class="timeline-icon">@(form.IsReturned ? "✓" : "○")</span>
+                                            <span class="timeline-text">@(form.IsReturned ? "Returned" : "Not Returned")</span>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-history">
+                    <p>📭 No borrow history yet.</p>
+                    <p>Visit the <a href="/studentborrow">Borrow</a> page to get started!</p>
+                </div>
+            }
+        </section>
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout {
+    display: flex;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+/* === Sidebar === */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+    z-index: 100;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.profile-section {
+    text-align: center;
+    padding: 40px 30px 32px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.profile-section::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.profile-section h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.9;
+    color: #ffffff;
+}
+
+.profile-pic {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.profile-pic::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.profile-pic:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.profile-pic:hover::before {
+    opacity: 1;
+}
+
+.logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+    color: #8B0000;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(139, 0, 0, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.logout-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.logout-btn:hover {
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+}
+
+.nav-menu {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 24px 20px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 3px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    transform: translate(10px, -50%) scale(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    padding-left: 28px;
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+.nav-item:hover::before {
+    transform: scaleY(1);
+}
+
+.nav-item:hover::after {
+    transform: translate(-12px, -50%) scale(1);
+}
+
+.nav-item.active {
+    color: #ffffff;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    padding-left: 28px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1);
+    border-left-color: #ffffff;
+}
+
+.nav-item.active::before {
+    transform: scaleY(1);
+}
+
+.nav-item.active::after {
+    transform: translate(-12px, -50%) scale(1);
+    background: #ffffff;
+}
+
+.footer-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 24px 30px 32px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%);
+    position: relative;
+}
+
+.footer-links::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.footer-links a {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    padding: 10px 20px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+}
+
+.footer-links a:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+/* === Main Content === */
+.main-content {
+    flex: 1;
+    margin-left: 280px;
+    padding: 40px 60px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+    overflow-y: auto;
+    position: relative;
+    min-height: 100vh;
+}
+
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%);
+    padding: 24px 32px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.top-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.top-header .icon {
+    font-size: 2rem;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+}
+
+.email {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    letter-spacing: 0.01em;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.divider {
+    display: none;
+}
+
+/* === History Section === */
+.history-section {
+    min-height: 400px;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.history-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    border: 2px solid #dee2e6;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.history-card:hover {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.history-card.pending {
+    border-left: 5px solid #ffc107;
+}
+
+.history-card.approved {
+    border-left: 5px solid #28a745;
+}
+
+.history-card.disapproved {
+    border-left: 5px solid #dc3545;
+}
+
+.history-card.returned {
+    border-left: 5px solid #6c757d;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.reference-code {
+    font-size: 1.1rem;
+}
+
+.reference-code code {
+    background: #e9ecef;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 1rem;
+}
+
+.status-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.disapproved {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-badge.returned {
+    background: #d6d8db;
+    color: #383d41;
+}
+
+.history-details {
+    margin-bottom: 20px;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.detail-label {
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.detail-value {
+    font-size: 1rem;
+    color: #333;
+}
+
+.items-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.items-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+}
+
+.items-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.items-list li:last-child {
+    border-bottom: none;
+}
+
+/* === Timeline === */
+.timeline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.timeline-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    border-radius: 20px;
+    background: white;
+    border: 2px solid #dee2e6;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.timeline-item.completed {
+    border-color: #28a745;
+    color: #28a745;
+    font-weight: 600;
+}
+
+.timeline-icon {
+    font-weight: bold;
+}
+
+.empty-history {
+    text-align: center;
+    padding: 80px 20px;
+    color: #666;
+}
+
+.empty-history p {
+    font-size: 1.2rem;
+    margin: 10px 0;
+}
+
+.empty-history a {
+    color: #a00000;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+.empty-history a:hover {
+    color: #c00000;
+}
+</style>
+
+@code {
+    private string displayedUsername = string.Empty;
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private List<BorrowForm> MyHistoryForms = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Console.WriteLine("⚠️ StudentHistory: No session email found; redirecting to login (/).");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedUsername = UserSession.Username;
+        displayedEmail = UserSession.Email;
+        
+        // Load history from database
+        await LoadHistoryAsync();
+        
+        Console.WriteLine($"✅ StudentHistory loaded. Logged in as: {displayedUsername}");
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try
+        {
+            MyHistoryForms = await Db.BorrowForms
+                .Include(f => f.Items)
+                .Where(f => f.StudentEmail == UserSession.Email)
+                .OrderByDescending(f => f.SubmittedAt)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading history: {ex.Message}");
+        }
+    }
+
+    private string GetStatusClass(BorrowForm form)
+    {
+        if (form.IsReturned) return "returned";
+        if (form.IsApproved == true && form.IsIssued) return "approved";
+        if (form.IsApproved == false) return "disapproved";
+        return "pending";
+    }
+
+    private string GetStatusText(BorrowForm form)
+    {
+        if (form.IsReturned) return "🔄 Returned";
+        if (form.IsApproved == true && form.IsIssued) return "📦 Issued";
+        if (form.IsApproved == true && !form.IsIssued) return "✅ Approved";
+        if (form.IsApproved == false) return "❌ Disapproved";
+        return "🕒 Pending";
+    }
+
+    private async Task LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine("🚪 StudentHistory: LogoutAsync invoked (SERVER side). Clearing session...");
+
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+
+            try
+            {
+                await JS.InvokeVoidAsync("console.log", "🚪 StudentHistory: Logout clicked (CLIENT side) - clearing session & redirecting to /");
+            }
+            catch
+            {
+                // ignore any JS error here
+            }
+
+            try
+            {
+                Navigation.NavigateTo("/", forceLoad: false);
+            }
+            catch (Exception navEx)
+            {
+                Console.WriteLine($"⚠️ Navigation.NavigateTo threw: {navEx.Message}");
+            }
+
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"⚠️ Hard redirect via JS failed: {jsEx.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ LogoutAsync error: {ex.Message}");
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch { }
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}

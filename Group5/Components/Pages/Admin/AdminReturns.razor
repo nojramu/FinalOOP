@@ -1,0 +1,343 @@
+@page "/adminreturns"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@using System
+@using Group5.Shared
+@using Group5.Models
+@using Group5.Data
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Administrator</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/admindashboard" class="nav-item">Overview</a>
+            <a href="/adminforms" class="nav-item">All Forms</a>
+            <a href="/adminstock" class="nav-item">Stock</a>
+            <a href="/adminissue" class="nav-item">Issue Items</a>
+            <a href="/adminreturns" class="nav-item active">Returns</a>
+            <a href="/viewdatabase" class="nav-item">View Users</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">🔄</span> PROCESS RETURNS</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        <section class="returns-section">
+            <div class="section-header">
+                <h3>Issued Items Pending Return</h3>
+                <p>Mark issued forms as <strong>Returned</strong> when items are returned by students.</p>
+            </div>
+
+            @if (IssuedNotReturned.Any())
+            {
+                <div class="forms-count">
+                    <p>There are <strong>@IssuedNotReturned.Count</strong> form(s) with items currently borrowed.</p>
+                </div>
+                <div class="forms-list">
+                    @foreach (var form in IssuedNotReturned)
+                    {
+                        <div class="form-card">
+                            <div class="form-header">
+                                <div class="form-ref">
+                                    <strong>Ref:</strong> <code>@form.ReferenceCode</code>
+                                </div>
+                                <span class="badge issued">📦 Issued</span>
+                            </div>
+                            <div class="form-body">
+                                <div class="form-row">
+                                    <div class="form-field">
+                                        <span class="label">Student:</span>
+                                        <span class="value">@form.StudentName</span>
+                                    </div>
+                                    <div class="form-field">
+                                        <span class="label">Student Number:</span>
+                                        <span class="value">@form.StudentNumber</span>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-field">
+                                        <span class="label">Email:</span>
+                                        <span class="value">@form.StudentEmail</span>
+                                    </div>
+                                    <div class="form-field">
+                                        <span class="label">Issued:</span>
+                                        <span class="value">@form.ProcessedAt?.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                </div>
+                                @if (form.Items?.Any() == true)
+                                {
+                                    <div class="items-section">
+                                        <strong>Borrowed Items:</strong>
+                                        @foreach (var dept in form.Items.GroupBy(i => i.Department))
+                                        {
+                                            <div class="dept-group">
+                                                <strong class="dept-name">@dept.Key:</strong>
+                                                <ul class="items-list">
+                                                    @foreach (var item in dept)
+                                                    {
+                                                        <li>@item.ItemName × @item.Quantity</li>
+                                                    }
+                                                </ul>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                <div class="form-actions">
+                                    <button class="btn-return" @onclick="@(async () => await MarkAsReturned(form.Id))">
+                                        Mark as Returned
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <div class="empty-icon">✅</div>
+                    <p>No issued items awaiting return.</p>
+                    <p class="empty-subtitle">All items have been returned!</p>
+                </div>
+            }
+        </section>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="message @(message.Contains("Error") ? "error" : "success")">
+                @message
+            </div>
+        }
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout { display: flex; min-height: 100vh; font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; position: relative; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); }
+/* === Sidebar === */
+.sidebar { position: fixed; left: 0; top: 0; width: 280px; height: 100vh; background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%); color: white; display: flex; flex-direction: column; padding: 0; box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25); overflow-y: auto; z-index: 100; border-right: 1px solid rgba(255, 255, 255, 0.05); }
+.profile-section { text-align: center; padding: 40px 30px 32px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%); border-bottom: 1px solid rgba(255, 255, 255, 0.1); position: relative; }
+.profile-section::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); border-radius: 2px; }
+.profile-section h3 { margin: 0 0 20px 0; font-size: 1.1rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.9; color: #ffffff; }
+.profile-pic { width: 120px; height: 120px; margin: 0 auto 28px; display: flex; align-items: center; justify-content: center; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; padding: 15px; background: rgba(255, 255, 255, 0.08); border-radius: 50%; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+.profile-pic::before { content: ''; position: absolute; inset: -2px; border-radius: 50%; padding: 2px; background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.4s ease; }
+.profile-pic:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); }
+.profile-pic:hover::before { opacity: 1; }
+.logo-img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3)); }
+.logout-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%); color: #8B0000; border: none; border-radius: 10px; padding: 12px 24px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); letter-spacing: 0.5px; text-transform: uppercase; position: relative; overflow: hidden; }
+.logout-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; border-radius: 50%; background: rgba(139, 0, 0, 0.1); transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s; }
+.logout-btn:hover::before { width: 300px; height: 300px; }
+.logout-btn:hover { background: #ffffff; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); }
+.logout-btn:active { transform: translateY(0); }
+.nav-menu { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 24px 20px; }
+.nav-item { display: flex; align-items: center; background: transparent; color: rgba(255, 255, 255, 0.8); padding: 16px 20px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-left: 3px solid transparent; position: relative; overflow: hidden; }
+.nav-item::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 4px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4)); transform: scaleY(0); transition: transform 0.3s ease; }
+.nav-item::after { content: ''; position: absolute; right: 0; top: 50%; width: 6px; height: 6px; background: rgba(255, 255, 255, 0.6); border-radius: 50%; transform: translate(10px, -50%) scale(0); transition: transform 0.3s ease; }
+.nav-item:hover { color: #ffffff; background: rgba(255, 255, 255, 0.12); padding-left: 28px; box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05); }
+.nav-item:hover::before { transform: scaleY(1); }
+.nav-item:hover::after { transform: translate(-12px, -50%) scale(1); }
+.nav-item.active { color: #ffffff; background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%); padding-left: 28px; box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1); border-left-color: #ffffff; }
+.nav-item.active::before { transform: scaleY(1); }
+.nav-item.active::after { transform: translate(-12px, -50%) scale(1); background: #ffffff; }
+.footer-links { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 24px 30px 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%); position: relative; }
+.footer-links::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); border-radius: 2px; }
+.footer-links a { color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; font-weight: 500; text-decoration: none; transition: all 0.3s ease; padding: 10px 20px; border-radius: 8px; letter-spacing: 0.5px; }
+.footer-links a:hover { color: #ffffff; background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+/* === Main Content === */
+.main-content { flex: 1; margin-left: 280px; padding: 40px 60px; overflow-y: auto; position: relative; min-height: 100vh; }
+.top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%); padding: 24px 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); }
+.top-header h1 { font-size: 2rem; font-weight: 700; display: flex; align-items: center; gap: 14px; margin: 0; color: #ffffff; letter-spacing: -0.02em; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+.top-header .icon { font-size: 2rem; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4)); }
+.email { color: #ffffff; font-weight: 600; font-size: 0.95rem; padding: 8px 16px; background: rgba(255, 255, 255, 0.2); border-radius: 20px; letter-spacing: 0.01em; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+.divider { display: none; }
+/* === Returns Section === */
+.returns-section { margin-bottom: 40px; }
+.section-header { margin-bottom: 28px; }
+.section-header h3 { margin: 0 0 12px 0; font-size: 1.5rem; color: #1a1a2e; font-weight: 700; letter-spacing: -0.02em; }
+.section-header p { color: #6b7280; font-size: 1rem; line-height: 1.6; }
+.forms-count { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 18px 24px; border-radius: 12px; border-left: 5px solid #3b82f6; margin-bottom: 28px; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2); }
+.forms-count p { margin: 0; color: #1e40af; font-weight: 700; font-size: 1.05rem; }
+.forms-list { display: flex; flex-direction: column; gap: 24px; }
+.form-card { background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 2px solid #e9ecef; border-left: 6px solid #10b981; border-radius: 16px; padding: 28px; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); animation: fadeIn 0.5s ease-out; }
+.form-card:hover { transform: translateY(-4px) scale(1.01); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15); }
+.form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 3px solid #f3f4f6; }
+.form-ref code { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 8px 14px; border-radius: 8px; font-family: 'Consolas', 'Monaco', monospace; font-size: 1rem; font-weight: 700; color: #9B1B30; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+.badge { padding: 10px 18px; border-radius: 24px; font-weight: 700; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); text-transform: uppercase; letter-spacing: 0.5px; }
+.badge.issued { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1e40af; }
+.form-body { display: flex; flex-direction: column; gap: 18px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.form-field { display: flex; flex-direction: column; gap: 8px; }
+.form-field .label { font-weight: 700; font-size: 0.9rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-field .value { font-size: 1rem; color: #1a1a2e; font-weight: 500; }
+.items-section { background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); padding: 20px; border-radius: 12px; margin-top: 12px; border: 2px dashed #d1d5db; }
+.dept-group { margin: 12px 0; }
+.dept-name { color: #1a1a2e; font-size: 1.05rem; font-weight: 700; }
+.items-list { margin: 8px 0 0 24px; list-style: none; }
+.items-list li { margin: 6px 0; color: #4b5563; font-weight: 500; position: relative; padding-left: 16px; }
+.items-list li::before { content: '▸'; position: absolute; left: 0; color: #9B1B30; font-weight: 700; }
+.form-actions { margin-top: 20px; padding-top: 20px; border-top: 3px solid #f3f4f6; display: flex; justify-content: flex-end; }
+.btn-return { padding: 14px 32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-size: 1rem; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3); text-transform: uppercase; letter-spacing: 0.5px; }
+.btn-return:hover { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(59, 130, 246, 0.4); }
+.btn-return:active { transform: translateY(0); }
+.empty-state { text-align: center; padding: 100px 40px; color: #9ca3af; }
+.empty-icon { font-size: 4.5rem; margin-bottom: 24px; opacity: 0.6; }
+.empty-state p { font-size: 1.3rem; margin: 12px 0; font-weight: 600; }
+.empty-subtitle { font-size: 1.05rem !important; color: #d1d5db !important; font-weight: 500 !important; }
+.message { margin-top: 24px; padding: 18px 24px; border-radius: 12px; font-weight: 600; text-align: center; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); animation: slideIn 0.3s ease-out; }
+.message.success { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #064e3b; border: 2px solid #10b981; }
+.message.error { background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%); color: #7f1d1d; border: 2px solid #ef4444; }
+@@keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.form-card:nth-child(1) { animation-delay: 0.05s; }
+.form-card:nth-child(2) { animation-delay: 0.1s; }
+.form-card:nth-child(3) { animation-delay: 0.15s; }
+@@media (max-width: 1024px) { .sidebar { width: 260px; } .main-content { margin-left: 260px; padding: 30px 40px; } }
+@@media (max-width: 768px) { .sidebar { width: 100%; height: auto; position: relative; } .main-content { margin-left: 0; padding: 20px; } .top-header { flex-direction: column; gap: 16px; align-items: flex-start; } .form-row { grid-template-columns: 1fr; } }
+</style>
+
+
+
+@code {
+    [Inject] private Group5.Data.AppDbContext Db { get; set; } = null!;
+    [Inject] private Group5.Services.Interfaces.IInventoryService InventoryService { get; set; } = null!;
+    
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private string message = string.Empty;
+    private List<BorrowForm> issuedForms = new();
+
+    private List<BorrowForm> IssuedNotReturned => issuedForms;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Console.WriteLine("⚠️ AdminReturns: No session email found; redirecting to login.");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        // Check for Administrator role
+        if (string.IsNullOrWhiteSpace(UserSession.Role) || 
+            (!UserSession.Role.Equals("Administrator", StringComparison.OrdinalIgnoreCase) &&
+             !UserSession.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine($"⚠️ AdminReturns: User role is '{UserSession.Role}', not Administrator; redirecting.");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedEmail = UserSession.Email;
+        await LoadFormsAsync();
+        Console.WriteLine($"✅ AdminReturns loaded. Logged in as: {displayedEmail}");
+    }
+
+    private async Task LoadFormsAsync()
+    {
+        try
+        {
+            issuedForms = await Db.BorrowForms
+                .Include(f => f.Items)
+                .Where(f => f.IsIssued && !f.IsReturned)
+                .OrderByDescending(f => f.ProcessedAt)
+                .ToListAsync();
+            
+            Console.WriteLine($"✅ Loaded {issuedForms.Count} issued forms pending return");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading forms: {ex.Message}");
+        }
+    }
+
+    private async Task MarkAsReturned(int formId)
+    {
+        try
+        {
+            var form = await Db.BorrowForms
+                .Include(f => f.Items)
+                .FirstOrDefaultAsync(f => f.Id == formId);
+                
+            if (form == null || !form.IsIssued)
+            {
+                message = "Error: Only issued forms can be marked as returned.";
+                return;
+            }
+
+            // 🔥 CRITICAL: Restore inventory when items are returned
+            var inventoryResult = await InventoryService.ReturnItemsAsync(form.Items);
+            
+            if (!inventoryResult.Success)
+            {
+                message = $"❌ Error updating inventory: {inventoryResult.Message}";
+                StateHasChanged();
+                return;
+            }
+
+            // Mark form as returned
+            form.IsReturned = true;
+            await Db.SaveChangesAsync();
+            
+            message = $"✅ Form {form.ReferenceCode} marked as returned! Inventory restored.";
+            Console.WriteLine($"✅ Form {form.ReferenceCode} returned - inventory increased");
+            
+            // Reload forms
+            await LoadFormsAsync();
+            StateHasChanged();
+
+            await Task.Delay(3000);
+            message = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            message = $"❌ Error: {ex.Message}";
+            Console.WriteLine($"❌ Error marking as returned: {ex.Message}");
+            StateHasChanged();
+        }
+    }
+
+    private void LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+            Navigation.NavigateTo("/", forceLoad: false);
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}
+
+

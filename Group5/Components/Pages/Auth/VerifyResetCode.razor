@@ -1,0 +1,354 @@
+@page "/verify-reset-code"
+@inject NavigationManager Navigation
+@inject Group5.Data.AppDbContext DbContext
+@using Group5.Models
+@using Group5.Services
+@using Microsoft.EntityFrameworkCore
+@using System.Linq
+@rendermode InteractiveServer
+
+<style>
+    :root {
+        --primary: #ffffff;
+        --secondary: #e5e7eb;
+        --error: #EF4444;
+    }
+
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-image: url('https://storage.googleapis.com/bukas-website-v3-prd/website_v3/images/1_UE_Manila_Dalupan_Building_facade.original.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        color: white;
+        position: relative;
+    }
+
+    .top-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: #8B0000;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 30px;
+        box-sizing: border-box;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .university-logo {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .university-name {
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+    }
+
+    .nav-links {
+        display: flex;
+        gap: 30px;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        transition: opacity 0.3s;
+    }
+
+    .nav-link:hover {
+        opacity: 0.8;
+    }
+
+    .verification-form {
+        background: rgba(139, 0, 0, 0.95);
+        padding: 40px 30px 20px 30px;
+        border: none;
+        border-radius: 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        width: 400px;
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        text-align: center;
+        z-index: 5;
+        position: relative;
+        margin-top: 40px;
+    }
+
+    .verification-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 20px;
+        text-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+
+    .verification-subtitle {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    .code-input {
+        width: 100%;
+        padding: 15px;
+        font-size: 24px;
+        text-align: center;
+        letter-spacing: 10px;
+        border: 2px solid white;
+        border-radius: 4px;
+        background-color: white;
+        color: black;
+        margin-bottom: 20px;
+        font-weight: bold;
+    }
+
+    .code-input::placeholder {
+        letter-spacing: 5px;
+        color: rgba(0, 0, 0, 0.5);
+    }
+
+    .code-input:focus {
+        outline: none;
+        border-color: #fff;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+    }
+
+    .verify-btn {
+        background-color: white;
+        color: black;
+        border: none;
+        padding: 12px 40px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.15s ease;
+        width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .verify-btn:hover {
+        background-color: var(--secondary);
+    }
+
+    .verify-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+
+    .back-link {
+        color: white;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 15px;
+    }
+
+    .back-link:hover {
+        opacity: 0.8;
+    }
+
+    .success-message {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #4ade80;
+    }
+
+    .error-message {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #ef4444;
+    }
+
+    .info-message {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+    }
+</style>
+
+<div class="top-bar">
+    <div class="header-left">
+        <img src="/images/UE.png" alt="UE Logo" class="university-logo" />
+        <span class="university-name">UNIVERSITY OF THE EAST</span>
+    </div>
+    <nav class="nav-links">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/help" class="nav-link">Help</a>
+        <a href="/about-us" class="nav-link">About Us</a>
+    </nav>
+</div>
+
+<div class="verification-form">
+    <div class="verification-title">Verify Reset Code</div>
+    <div class="verification-subtitle">
+        We've sent a password reset code to<br />
+        <strong>@userEmail</strong>
+    </div>
+
+    <input 
+        class="code-input" 
+        type="text" 
+        placeholder="000000" 
+        maxlength="6"
+        value="@verificationCode"
+        @oninput="HandleInput"
+        inputmode="numeric"
+        pattern="[0-9]*" />
+
+    <button 
+        class="verify-btn" 
+        @onclick="VerifyCode"
+        disabled="@(isVerifying || isVerified)">
+        @if (isVerifying)
+        {
+            <text>Verifying...</text>
+        }
+        else if (isVerified)
+        {
+            <text>Verified ✓</text>
+        }
+        else
+        {
+            <text>Verify Code</text>
+        }
+    </button>
+
+    <span class="back-link" @onclick="BackToForgotPassword">Back to Forgot Password</span>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="success-message">@successMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-message">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(infoMessage))
+    {
+        <div class="info-message">@infoMessage</div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? Email { get; set; }
+
+    private string userEmail = string.Empty;
+    private string verificationCode = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string infoMessage = string.Empty;
+    private bool isVerifying = false;
+    private bool isVerified = false;
+
+    protected override void OnInitialized()
+    {
+        userEmail = Email ?? string.Empty;
+        if (string.IsNullOrEmpty(userEmail))
+        {
+            Navigation.NavigateTo("/forgotpassword", forceLoad: true);
+        }
+    }
+
+    private void HandleInput(ChangeEventArgs e)
+    {
+        var inputValue = e.Value?.ToString() ?? string.Empty;
+        verificationCode = new string(inputValue.Where(char.IsDigit).Take(6).ToArray());
+        StateHasChanged();
+    }
+
+    private async Task VerifyCode()
+    {
+        if (string.IsNullOrWhiteSpace(verificationCode) || verificationCode.Length != 6)
+        {
+            errorMessage = "Please enter a valid 6-digit code.";
+            return;
+        }
+
+        isVerifying = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        infoMessage = string.Empty;
+
+        try
+        {
+            // Get Philippines time (UTC+8)
+            var philippinesTime = SecurityHelper.GetPhilippinesTime();
+
+            // Find the reset code
+            var codeRecord = await DbContext.VerificationCodes
+                .FirstOrDefaultAsync(c => 
+                    c.Email.ToLower() == userEmail.ToLower() && 
+                    c.Code == verificationCode && 
+                    !c.IsUsed &&
+                    c.ExpiresAt > philippinesTime);
+
+            if (codeRecord == null)
+            {
+                errorMessage = "Invalid or expired reset code. Please check the code and try again, or request a new code.";
+                isVerifying = false;
+                return;
+            }
+
+            // Mark code as used
+            codeRecord.IsUsed = true;
+            await DbContext.SaveChangesAsync();
+
+            successMessage = "Code verified successfully!";
+            isVerified = true;
+            infoMessage = "Redirecting to password reset page...";
+
+            // Redirect to reset password page after 2 seconds
+            await Task.Delay(2000);
+            Navigation.NavigateTo($"/resetpassword?email={Uri.EscapeDataString(userEmail)}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isVerifying = false;
+        }
+    }
+
+    private void BackToForgotPassword()
+    {
+        Navigation.NavigateTo("/forgotpassword", forceLoad: true);
+    }
+}
+

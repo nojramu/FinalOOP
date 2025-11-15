@@ -1,0 +1,520 @@
+﻿@page "/"
+@inject NavigationManager Navigation
+@inject Group5.Data.AppDbContext DbContext
+@using Group5.Models
+@using Group5.Shared
+@using Group5.Services
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<style>
+    :root {
+        --primary: #ffffff;
+        --secondary: #e5e7eb;
+        --error: #EF4444;
+    }
+
+    body {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-image: url('https://storage.googleapis.com/bukas-website-v3-prd/website_v3/images/1_UE_Manila_Dalupan_Building_facade.original.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        color: white;
+        position: relative;
+    }
+
+    .top-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: #8B0000;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 30px;
+        box-sizing: border-box;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .university-logo {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .university-name {
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+    }
+
+    .nav-links {
+        display: flex;
+        gap: 30px;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        transition: opacity 0.3s;
+    }
+
+    .nav-link:hover {
+        opacity: 0.8;
+    }
+
+    .login-form {
+        background: rgba(139, 0, 0, 0.95);
+        padding: 70px 30px 20px 30px;
+        border: none;
+        border-radius: 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        width: 360px;
+        height: 460px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        text-align: center;
+        margin-right: 120px;
+        z-index: 5;
+    }
+
+    .login-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 30px;
+        text-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+
+    label {
+        display: flex;
+        flex-direction: column;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: white;
+        font-size: 14px;
+        text-align: left;
+        width: 80%;
+    }
+
+    .text-input {
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid white;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: white;
+        color: black;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        width: 100%;
+        align-self: center;
+        box-sizing: border-box;
+    }
+
+    .text-input::placeholder {
+        color: rgba(0, 0, 0, 0.5);
+    }
+
+    .password-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 5px;
+        z-index: 10;
+    }
+
+    .password-toggle:hover {
+        color: #000;
+    }
+
+    .dropdown-input {
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid white;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: white;
+        color: black;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        width: 100%;
+        align-self: center;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='black' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 10px 6px;
+        box-sizing: border-box;
+    }
+
+    .dropdown-input option {
+        color: black;
+        background-color: white;
+    }
+
+    .dropdown-input:focus {
+        border-color: #fff;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        outline: none;
+    }
+
+    .form-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start; /* align items to top */
+        margin-top: 12px;
+        width: 80%;
+        gap: 10px;
+    }
+
+    .links-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .link-text {
+        color: white;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .login-btn {
+        background-color: white;
+        color: black;
+        border: none;
+        padding: 10px 35px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.15s ease;
+        align-self: flex-start; /* align with top of link stack */
+    }
+
+    .login-btn:hover {
+        background-color: var(--secondary);
+    }
+
+    .login-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+
+    .error-message {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #ef4444;
+        background-color: rgba(239, 68, 68, 0.1);
+        padding: 10px;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="top-bar">
+    <div class="header-left">
+        <img src="/images/UE.png" alt="UE Logo" class="university-logo" />
+        <span class="university-name">UNIVERSITY OF THE EAST</span>
+    </div>
+    <nav class="nav-links">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/help" class="nav-link">Help</a>
+        <a href="/about-us" class="nav-link">About Us</a>
+    </nav>
+</div>
+
+<div class="login-form">
+    <div class="login-title">Login</div>
+
+    <label>
+        User Type:
+        <select class="dropdown-input" @bind="selectedRole">
+            <option value="Student">Student</option>
+            <option value="Professor">Professor</option>
+            <option value="Administrator">Administrator</option>
+        </select>
+    </label>
+
+    <label>
+        Email:
+        <input class="text-input" @bind="email" type="email" placeholder="Enter your email" autocomplete="email" disabled="@isLoggingIn" />
+        @if (!string.IsNullOrEmpty(email) && !IsValidEmail(email))
+        {
+            <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">Please enter a valid email address.</span>
+        }
+    </label>
+
+    <label>
+        Password:
+        <div class="password-container">
+            <input class="text-input" type="@(showPassword ? "text" : "password")" @bind="password" placeholder="Enter your password" autocomplete="current-password" disabled="@isLoggingIn" style="padding-right: 40px;" />
+            <button type="button" class="password-toggle" @onclick="TogglePasswordVisibility" tabindex="-1">
+                @(showPassword ? "🙈" : "👁️")
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(password) && password.Length < 6)
+        {
+            <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">Password must be at least 6 characters.</span>
+        }
+    </label>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-message" style="width: 80%; margin-top: 10px;">
+            @errorMessage
+        </div>
+    }
+
+    <div class="form-footer">
+        <div class="links-container">
+            <span class="link-text" @onclick="GoToForgotPassword">Forgot Password?</span>
+            <span class="link-text" @onclick="GoToSignup">Sign Up Here</span>
+        </div>
+        <button class="login-btn" @onclick="Login" disabled="@isLoggingIn">
+            @if (isLoggingIn)
+            {
+                <text>Logging in...</text>
+            }
+            else
+            {
+                <text>Login</text>
+            }
+        </button>
+    </div>
+</div>
+
+@code {
+    private string email { get; set; } = string.Empty;
+    private string password { get; set; } = string.Empty;
+    private string selectedRole { get; set; } = "Student";
+    private string errorMessage { get; set; } = string.Empty;
+    private bool isLoggingIn = false;
+    private bool showPassword = false;
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if user is already logged in
+        if (UserSession.IsLoggedIn && !string.IsNullOrWhiteSpace(UserSession.Role))
+        {
+            Console.WriteLine($"✅ User already logged in as {UserSession.Email} ({UserSession.Role}), redirecting to dashboard...");
+            // Redirect immediately without showing login form
+            NavigateToRolePage(UserSession.Role);
+            return;
+        }
+        
+        // Session check complete, show login form
+        await Task.Delay(50);
+    }
+
+    private bool IsValidEmail(string email)
+    {
+        return SecurityHelper.IsValidEmail(email);
+    }
+
+    private async Task Login()
+    {
+        errorMessage = string.Empty;
+
+        // Validate email format
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            errorMessage = "Please enter your email address.";
+            StateHasChanged();
+            return;
+        }
+
+        if (!IsValidEmail(email))
+        {
+            errorMessage = "Please enter a valid email address.";
+            StateHasChanged();
+            return;
+        }
+
+        // Validate password
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Please enter your password.";
+            StateHasChanged();
+            return;
+        }
+
+        if (password.Length < 6)
+        {
+            errorMessage = "Password must be at least 6 characters.";
+            StateHasChanged();
+            return;
+        }
+
+        isLoggingIn = true;
+        StateHasChanged();
+
+        try
+        {
+            // Get Philippines time for lockout check
+            var philippinesTime = SecurityHelper.GetPhilippinesTime();
+
+            // First, check if email exists with the selected role
+            var user = await DbContext.Users
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower() && u.Role == selectedRole);
+
+            if (user == null)
+            {
+                // Check if email exists with a different role (for security - don't reveal this)
+                var emailExistsWithDifferentRole = await DbContext.Users
+                    .AnyAsync(u => u.Email.ToLower() == email.ToLower() && u.Role != selectedRole);
+                
+                // Show generic error message regardless of whether email exists or not
+                // This prevents revealing account information
+                errorMessage = "Please enter a valid email address.";
+                isLoggingIn = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Check if account is locked
+            if (user.LockedUntil.HasValue && user.LockedUntil.Value > philippinesTime)
+            {
+                var minutesRemaining = (int)Math.Ceiling((user.LockedUntil.Value - philippinesTime).TotalMinutes);
+                errorMessage = $"Account is temporarily locked due to too many failed login attempts. Please try again in {minutesRemaining} minute(s).";
+                isLoggingIn = false;
+                StateHasChanged();
+                return;
+            }
+
+            // If lockout expired, reset failed attempts
+            if (user.LockedUntil.HasValue && user.LockedUntil.Value <= philippinesTime)
+            {
+                user.FailedLoginAttempts = 0;
+                user.LockedUntil = null;
+            }
+
+            // Verify password using BCrypt (with backward compatibility for plain text)
+            bool isPasswordValid = SecurityHelper.VerifyPassword(password, user.PasswordHash);
+            
+            // If password is valid but stored as plain text, migrate it to hashed format
+            if (isPasswordValid && !user.PasswordHash.StartsWith("$2"))
+            {
+                user.PasswordHash = SecurityHelper.HashPassword(password);
+                Console.WriteLine($"🔄 Migrated password to hashed format for user: {user.Email}");
+            }
+            
+            // If password is invalid, increment failed attempts
+            if (!isPasswordValid)
+            {
+                user.FailedLoginAttempts++;
+                
+                // Lock account after max attempts for specified duration
+                if (user.FailedLoginAttempts >= SecurityHelper.MaxFailedLoginAttempts)
+                {
+                    user.LockedUntil = philippinesTime.AddMinutes(SecurityHelper.LockoutDurationMinutes);
+                    errorMessage = $"Too many failed login attempts. Your account has been locked for {SecurityHelper.LockoutDurationMinutes} minutes.";
+                }
+                else
+                {
+                    var attemptsRemaining = SecurityHelper.MaxFailedLoginAttempts - user.FailedLoginAttempts;
+                    errorMessage = $"Incorrect password. {attemptsRemaining} attempt(s) remaining before account lockout.";
+                }
+                
+                await DbContext.SaveChangesAsync();
+                isLoggingIn = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Successful login - reset failed attempts
+            user.FailedLoginAttempts = 0;
+            user.LockedUntil = null;
+            await DbContext.SaveChangesAsync();
+
+            // Set session data - ensure all properties are set together
+            UserSession.Email = user.Email;
+            UserSession.Username = user.Username;
+            UserSession.Role = user.Role;
+
+            Console.WriteLine($"✅ Login successful: {user.Email} ({user.Role})");
+            Console.WriteLine($"📋 Session check - Email: {UserSession.Email}, Role: {UserSession.Role}");
+            Console.WriteLine($"📋 Session check - IsLoggedIn: {UserSession.IsLoggedIn}");
+            
+            // Ensure state is updated before navigation
+            StateHasChanged();
+            await Task.Delay(300);
+            
+            // Double-check session before navigation
+            Console.WriteLine($"📋 Pre-navigation check - Email: {UserSession.Email}, Role: {UserSession.Role}");
+            
+            NavigateToRolePage(user.Role);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred during login. Please try again.";
+            Console.WriteLine($"❌ Login error: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            isLoggingIn = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoToSignup()
+    {
+        Navigation.NavigateTo("/signup", forceLoad: true);
+    }
+
+    private void GoToForgotPassword()
+    {
+        Navigation.NavigateTo("/forgotpassword", forceLoad: true);
+    }
+
+    private void NavigateToRolePage(string role)
+    {
+        if (role == "Student")
+            Navigation.NavigateTo("/studentdashboard", forceLoad: true);
+        else if (role == "Professor")
+            Navigation.NavigateTo("/professordashboard", forceLoad: true);
+        else if (role == "Administrator")
+        {
+            // For Administrator, use forceLoad to ensure cookie is read
+            Console.WriteLine($"🚀 Navigating Administrator to /admindashboard with forceLoad");
+            Navigation.NavigateTo("/admindashboard", forceLoad: true);
+        }
+    }
+}

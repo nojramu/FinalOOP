@@ -1,0 +1,635 @@
+@page "/signup"
+@inject NavigationManager Navigation
+@inject Group5.Data.AppDbContext DbContext
+@inject Group5.Services.Interfaces.IEmailService EmailService
+@using Group5.Models
+@using Group5.Shared
+@using Group5.Services
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<style>
+    :root {
+        --primary: #ffffff;
+        --secondary: #e5e7eb;
+        --error: #EF4444;
+    }
+
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-image: url('https://storage.googleapis.com/bukas-website-v3-prd/website_v3/images/1_UE_Manila_Dalupan_Building_facade.original.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        color: white;
+        position: relative;
+    }
+
+    .top-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: #8B0000;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 30px;
+        box-sizing: border-box;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .university-logo {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .university-name {
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+    }
+
+    .nav-links {
+        display: flex;
+        gap: 30px;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        transition: opacity 0.3s;
+    }
+
+    .nav-link:hover {
+        opacity: 0.8;
+    }
+
+    .signup-form {
+        background: rgba(139, 0, 0, 0.95);
+        padding: 40px 30px 20px 30px;
+        border: none;
+        border-radius: 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        width: 360px;
+        min-height: 540px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        text-align: center;
+        z-index: 5;
+        position: relative;
+        margin-top: 40px;
+    }
+
+    .signup-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 20px;
+        text-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+
+    label {
+        display: flex;
+        flex-direction: column;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: white;
+        font-size: 14px;
+        text-align: left;
+        width: 80%;
+    }
+
+    /* Email and Password Input Style */
+    .text-input {
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid white;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: white;
+        color: black;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        width: 100%;
+        align-self: center;
+        box-sizing: border-box;
+    }
+
+    .text-input::placeholder {
+        color: rgba(0, 0, 0, 0.5);
+    }
+
+    .text-input:focus {
+        border-color: #fff;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        outline: none;
+    }
+
+    .password-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 5px;
+        z-index: 10;
+    }
+
+    .password-toggle:hover {
+        color: #000;
+    }
+
+    /* Dropdown (Select) Style */
+    .dropdown-input {
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid white;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: white;
+        color: black;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        width: 100%;
+        align-self: center;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='black' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 10px 6px;
+        box-sizing: border-box;
+    }
+
+    .dropdown-input option {
+        color: black;
+        background-color: white;
+    }
+
+    .dropdown-input:focus {
+        border-color: #fff;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        outline: none;
+    }
+
+    .form-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+        width: 80%;
+    }
+
+    .login-text {
+        color: white;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .signup-btn {
+        background-color: white;
+        color: black;
+        border: none;
+        padding: 10px 35px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.15s ease;
+    }
+
+    .signup-btn:hover {
+        background-color: var(--secondary);
+    }
+
+    .signup-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+
+    .success-message {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #4ade80;
+        background-color: rgba(74, 222, 128, 0.1);
+        padding: 10px;
+        border-radius: 4px;
+    }
+
+    .error-message {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #ef4444;
+        background-color: rgba(239, 68, 68, 0.1);
+        padding: 10px;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="top-bar">
+    <div class="header-left">
+        <img src="/images/UE.png" alt="UE Logo" class="university-logo" />
+        <span class="university-name">UNIVERSITY OF THE EAST</span>
+    </div>
+    <nav class="nav-links">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/help" class="nav-link">Help</a>
+        <a href="/about-us" class="nav-link">About Us</a>
+    </nav>
+</div>
+
+<div class="signup-form">
+    <div class="signup-title">Sign Up</div>
+
+    <label>
+        User Type:
+        <select class="dropdown-input" @bind="selectedRole">
+            <option value="Student">Student</option>
+        </select>
+    </label>
+
+    <label>
+        Username:
+        <input class="text-input" @bind="username" type="text" placeholder="Enter your username (3-100 characters)" maxlength="100" disabled="@isSigningUp" />
+        @if (!string.IsNullOrEmpty(username))
+        {
+            @if (username.Length < 3)
+            {
+                <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">Username must be at least 3 characters.</span>
+            }
+            else if (username.Length > 100)
+            {
+                <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">Username must be 100 characters or less.</span>
+            }
+        }
+    </label>
+
+    <label>
+        Email:
+        <input class="text-input" @bind="email" type="email" placeholder="Enter your email address" disabled="@isSigningUp" />
+        @if (!string.IsNullOrEmpty(email) && !IsValidEmail(email))
+        {
+            <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">Please enter a valid email address.</span>
+        }
+    </label>
+
+    @if (selectedRole == "Student")
+    {
+        <label>
+            Full Name:
+            <input class="text-input" @bind="fullName" type="text" placeholder="Enter your full name (min 2 characters)" disabled="@isSigningUp" />
+            @if (!string.IsNullOrEmpty(fullName) && fullName.Length < 2)
+            {
+                <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">Full name must be at least 2 characters.</span>
+            }
+        </label>
+
+        <label>
+            Student Number:
+            <input class="text-input" @bind="studentNumber" type="text" placeholder="Enter your student number" disabled="@isSigningUp" />
+        </label>
+    }
+
+    <label>
+        Password:
+        <div class="password-container">
+            <input class="text-input" type="@(showPassword ? "text" : "password")" @bind="password" placeholder="Enter your password (min 6 characters, must contain letter and number)" disabled="@isSigningUp" style="padding-right: 40px;" />
+            <button type="button" class="password-toggle" @onclick="TogglePasswordVisibility" tabindex="-1">
+                @(showPassword ? "🙈" : "👁️")
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(password))
+        {
+            @if (password.Length < 6)
+            {
+                <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">Password must be at least 6 characters.</span>
+            }
+            else
+            {
+                var (isValid, error) = SecurityHelper.ValidatePasswordStrength(password);
+                if (!isValid)
+                {
+                    <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">@error</span>
+                }
+            }
+        }
+    </label>
+
+    <label>
+        Confirm Password:
+        <div class="password-container">
+            <input class="text-input" type="@(showConfirmPassword ? "text" : "password")" @bind="confirmPassword" placeholder="Confirm your password" disabled="@isSigningUp" style="padding-right: 40px;" />
+            <button type="button" class="password-toggle" @onclick="ToggleConfirmPasswordVisibility" tabindex="-1">
+                @(showConfirmPassword ? "🙈" : "👁️")
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(confirmPassword) && !string.IsNullOrEmpty(password) && confirmPassword != password)
+        {
+            <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">Passwords do not match.</span>
+        }
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <span style="color: #ef4444; font-size: 12px; margin-top: 2px;">@errorMessage</span>
+        }
+    </label>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="success-message">@successMessage</div>
+    }
+
+    <div class="form-footer">
+        <span class="login-text" @onclick="BackToLogin">Back to Login</span>
+        <button class="signup-btn" @onclick="SignUp" disabled="@isSigningUp">
+            @if (isSigningUp)
+            {
+                <text>Signing up...</text>
+            }
+            else
+            {
+                <text>Sign Up</text>
+            }
+        </button>
+    </div>
+</div>
+
+@code {
+    private string username { get; set; } = string.Empty;
+    private string email { get; set; } = string.Empty;
+    private string password { get; set; } = string.Empty;
+    private string confirmPassword { get; set; } = string.Empty;
+    private string selectedRole { get; set; } = "Student";
+    private string fullName { get; set; } = string.Empty;
+    private string studentNumber { get; set; } = string.Empty;
+    private string errorMessage { get; set; } = string.Empty;
+    private string successMessage { get; set; } = string.Empty;
+    private bool isSigningUp = false;
+    private bool showPassword = false;
+    private bool showConfirmPassword = false;
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    private void ToggleConfirmPasswordVisibility()
+    {
+        showConfirmPassword = !showConfirmPassword;
+    }
+
+    private bool IsValidEmail(string email)
+    {
+        return SecurityHelper.IsValidEmail(email);
+    }
+
+    private async Task SignUp()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        // Validate username
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            errorMessage = "Please enter a username.";
+            return;
+        }
+
+        if (username.Length < 3)
+        {
+            errorMessage = "Username must be at least 3 characters.";
+            return;
+        }
+
+        if (username.Length > 100)
+        {
+            errorMessage = "Username must be 100 characters or less.";
+            return;
+        }
+
+        // Validate email
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            errorMessage = "Please enter your email address.";
+            return;
+        }
+
+        if (!IsValidEmail(email))
+        {
+            errorMessage = "Please enter a valid email address.";
+            return;
+        }
+
+        // Validate password
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Please enter a password.";
+            return;
+        }
+
+        if (password.Length < 6)
+        {
+            errorMessage = "Password must be at least 6 characters.";
+            return;
+        }
+
+        // Validate password strength (must contain letter and number)
+        var (isValidPassword, passwordError) = SecurityHelper.ValidatePasswordStrength(password);
+        if (!isValidPassword)
+        {
+            errorMessage = passwordError;
+            return;
+        }
+
+        // Validate password confirmation
+        if (string.IsNullOrWhiteSpace(confirmPassword))
+        {
+            errorMessage = "Please confirm your password.";
+            return;
+        }
+
+        if (password != confirmPassword)
+        {
+            errorMessage = "Passwords do not match. Please try again.";
+            return;
+        }
+
+        // Prevent Administrator and Professor account creation through signup
+        if (selectedRole == "Administrator" || selectedRole == "Professor")
+        {
+            errorMessage = $"{selectedRole} accounts cannot be created through signup. Please contact system administrator.";
+            return;
+        }
+
+        // Validate Student-specific fields
+        if (selectedRole == "Student")
+        {
+            if (string.IsNullOrWhiteSpace(fullName))
+            {
+                errorMessage = "Please enter your full name.";
+                return;
+            }
+
+            if (fullName.Length < 2)
+            {
+                errorMessage = "Full name must be at least 2 characters.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(studentNumber))
+            {
+                errorMessage = "Please enter your student number.";
+                return;
+            }
+        }
+
+        isSigningUp = true;
+        StateHasChanged();
+
+        try
+        {
+            // Check if the username already exists (in Users or TempSignups)
+            if (await DbContext.Users.AnyAsync(u => u.Username.ToLower() == username.ToLower()) ||
+                await DbContext.TempSignups.AnyAsync(t => t.Username.ToLower() == username.ToLower()))
+            {
+                errorMessage = "This username is already taken. Please choose a different username.";
+                isSigningUp = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Check if the account already exists (in Users or TempSignups)
+            if (await DbContext.Users.AnyAsync(u => u.Email.ToLower() == email.ToLower()))
+            {
+                errorMessage = "An account with this email already exists. Please login instead.";
+                isSigningUp = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Check if there's already a pending signup for this email
+            if (await DbContext.TempSignups.AnyAsync(t => t.Email.ToLower() == email.ToLower()))
+            {
+                errorMessage = "A verification code has already been sent to this email. Please check your inbox or wait a few minutes before requesting a new code.";
+                isSigningUp = false;
+                StateHasChanged();
+                return;
+            }
+
+            // ✅ Store signup data temporarily (account will be created after email verification)
+            // Get Philippines time (UTC+8)
+            var philippinesTime = SecurityHelper.GetPhilippinesTime();
+
+            var tempSignup = new TempSignup
+            {
+                Email = email,
+                Username = username,
+                PasswordHash = SecurityHelper.HashPassword(password), // Hash password before storing
+                Role = selectedRole,
+                Name = selectedRole == "Student" ? fullName : string.Empty,
+                StudentNumber = selectedRole == "Student" ? studentNumber : string.Empty,
+                CreatedAt = philippinesTime
+            };
+
+            DbContext.TempSignups.Add(tempSignup);
+
+            // Generate verification code
+            var verificationCode = SecurityHelper.GenerateVerificationCode();
+            
+            var verificationCodeRecord = new VerificationCode
+            {
+                Email = email,
+                Code = verificationCode,
+                CreatedAt = philippinesTime,
+                ExpiresAt = philippinesTime.AddMinutes(SecurityHelper.VerificationCodeExpirationMinutes),
+                IsUsed = false
+            };
+
+            DbContext.VerificationCodes.Add(verificationCodeRecord);
+            await DbContext.SaveChangesAsync();
+
+            // Send verification code via email
+            var (emailSent, emailError) = await EmailService.SendVerificationCodeAsync(email, verificationCode);
+            
+            if (emailSent)
+            {
+                successMessage = "Verification code sent! Please check your email.";
+                // Save to session
+                UserSession.Email = email;
+                UserSession.Username = username;
+                UserSession.Role = selectedRole;
+
+                // Redirect to verification page after 2 seconds
+                await Task.Delay(2000);
+                Navigation.NavigateTo($"/verify-email?email={Uri.EscapeDataString(email)}", forceLoad: true);
+            }
+            else
+            {
+                // Clean up temp signup if email failed
+                DbContext.TempSignups.Remove(tempSignup);
+                await DbContext.SaveChangesAsync();
+                
+                errorMessage = $"Failed to send verification email. {emailError}";
+                if (emailError.Contains("Email configuration not set"))
+                {
+                    errorMessage += " Please configure Gmail SMTP settings in appsettings.json. See console for details.";
+                }
+                isSigningUp = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred during signup. Please try again.";
+            Console.WriteLine($"❌ Signup error: {ex.Message}");
+            isSigningUp = false;
+            StateHasChanged();
+        }
+    }
+
+    private void BackToLogin()
+    {
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private void NavigateToRolePage(string role)
+    {
+        if (role == "Student")
+            Navigation.NavigateTo("/studentdashboard", forceLoad: true);
+        else if (role == "Professor")
+            Navigation.NavigateTo("/professordashboard", forceLoad: true);
+        else if (role == "Administrator")
+            Navigation.NavigateTo("/admindashboard", forceLoad: true);
+    }
+}

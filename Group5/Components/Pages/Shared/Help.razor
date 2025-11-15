@@ -1,0 +1,334 @@
+@page "/help"
+
+<div class="page-container">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <img src="/images/UE.png" alt="UE Logo" class="university-logo" />
+            <span class="university-name">UNIVERSITY OF THE EAST</span>
+        </div>
+        <nav class="header-nav">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/help" class="nav-link">Help</a>
+            <a href="/about-us" class="nav-link">About Us</a>
+        </nav>
+    </header>
+
+    <!-- Main Content with Background -->
+    <div class="main-bg">
+        <div class="hero-panel">
+            <!-- College of Engineering Logo -->
+            <div class="college-logo">
+                <img src="/images/ENLOGO.png" alt="College of Engineering Logo" class="logo-image" />
+            </div>
+
+            <!-- Main Title -->
+            <h1 class="main-title">HELP CENTER</h1>
+
+            <!-- Intro -->
+            <div class="content-area">
+                <p>
+                    Welcome to the Help Center for the <strong>Digital Borrowing System</strong>.
+                </p>
+                <p>
+                    This page will guide you through the system's features, procedures, and frequently asked questions.
+                    It is designed to help students, professors, and administrators understand how to use the platform efficiently.
+                </p>
+            </div>
+
+            <!-- Procedures Section -->
+            <h2 class="section-title">Procedures</h2>
+            <div class="procedure-section">
+                <h3>For Students</h3>
+                <ol>
+                    <li>Login using your student account credentials.</li>
+                    <li>Select a department you want to borrow materials from.</li>
+                    <li>Choose the items you want to borrow and set their quantities.</li>
+                    <li>Add them to your borrowing form.</li>
+                    <li>Submit the form to the professor handling your subject code.</li>
+                    <li>Wait for approval. Once approved, you can proceed to claim your borrowed items.</li>
+                </ol>
+
+                <h3>For Professors</h3>
+                <ol>
+                    <li>Login using your professor account credentials.</li>
+                    <li>Review pending borrowing forms submitted by students.</li>
+                    <li>Approve or disapprove the requests based on validity and item availability.</li>
+                    <li>Approved forms are then sent to the administrator for final verification.</li>
+                </ol>
+
+                <h3>For Administrators</h3>
+                <ol>
+                    <li>Login using your admin account credentials.</li>
+                    <li>View approved forms from professors.</li>
+                    <li>Accept or deny requests depending on stock and policy.</li>
+                    <li>Update the database with borrowing records for tracking and history purposes.</li>
+                </ol>
+            </div>
+
+            <!-- FAQ Section -->
+            <h2 class="section-title">Frequently Asked Questions (FAQs)</h2>
+            <div class="faq-section">
+                <div class="faq-item">
+                    <h3>1. What is the Digital Borrowing System?</h3>
+                    <p>The Digital Borrowing System is an online platform that allows students to request, borrow, and track materials from different departments efficiently.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>2. Who can use the system?</h3>
+                    <p>The system can be accessed by three main users: students, professors, and administrators — each having specific roles and permissions.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>3. How do I know if my borrowing request is approved?</h3>
+                    <p>You will receive a status update in your account once your professor and the administrator approve your borrowing form.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>4. Can I cancel my borrowing request after submitting?</h3>
+                    <p>Yes. As long as your request is still pending and not yet approved by your professor, you can cancel it from your account dashboard.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>5. What happens if an item I need is unavailable?</h3>
+                    <p>The system will notify you of item unavailability. You can either wait until it's restocked or choose another available item.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>6. Is my personal data secure?</h3>
+                    <p>Yes. All user information and borrowing records are protected through secure database management and authentication features.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>7. What should I do if I forget my password?</h3>
+                    <p>Click on the "Forgot Password" option on the login page. Follow the verification process to reset your password safely.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>8. Who should I contact for technical issues?</h3>
+                    <p>If you encounter bugs or errors, contact the system administrator or your department's IT support team for assistance.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .page-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+        background-color: #8B0000;
+        color: white;
+        padding: 15px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        z-index: 10;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .university-logo {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .university-name {
+        font-size: 24px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+    }
+
+    .header-nav {
+        display: flex;
+        gap: 30px;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        transition: opacity 0.3s;
+    }
+
+    .nav-link:hover {
+        opacity: 0.8;
+    }
+
+    /* Main Background */
+    .main-bg {
+        flex: 1;
+        background-image: url('/images/EN%20BLDG.png');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        padding: 80px 20px 60px 20px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    /* Hero Panel */
+    .hero-panel {
+        background: rgba(178, 34, 34, 0.85);
+        border-radius: 15px;
+        padding: 40px;
+        max-width: 1000px;
+        width: 100%;
+        color: white;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        position: relative;
+    }
+
+    /* College of Engineering Logo */
+    .college-logo {
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5;
+    }
+
+    .logo-image {
+        width: 120px;
+        height: 120px;
+        object-fit: contain;
+        border: none !important;
+        outline: none !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Main Title */
+    .main-title {
+        font-size: 4rem;
+        font-weight: bold;
+        margin: 40px 0 20px 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-decoration: underline;
+        text-underline-offset: 10px;
+    }
+
+    /* Content Area */
+    .content-area {
+        text-align: left;
+        font-size: 1.1rem;
+        line-height: 1.7;
+        margin-bottom: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        border-radius: 10px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .content-area p {
+        margin-bottom: 15px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .content-area strong {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Section Titles */
+    .section-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-top: 40px;
+        margin-bottom: 20px;
+        border-bottom: 3px solid rgba(255, 255, 255, 0.5);
+        padding-bottom: 10px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-align: left;
+    }
+
+    /* Procedure Section */
+    .procedure-section {
+        text-align: left;
+        font-size: 1.1rem;
+        line-height: 1.7;
+        margin-bottom: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        border-radius: 10px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .procedure-section h3 {
+        margin-top: 20px;
+        margin-bottom: 10px;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 1.5rem;
+        font-weight: bold;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .procedure-section h3:first-child {
+        margin-top: 0;
+    }
+
+    .procedure-section ol {
+        margin-left: 30px;
+        margin-bottom: 25px;
+        line-height: 1.8;
+    }
+
+    .procedure-section ol li {
+        margin-bottom: 8px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* FAQ Section */
+    .faq-section {
+        margin-top: 20px;
+        text-align: left;
+    }
+
+    .faq-item {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s ease;
+    }
+
+    .faq-item:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .faq-item h3 {
+        color: rgba(255, 255, 255, 0.95);
+        margin-bottom: 10px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .faq-item p {
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.9);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+</style>

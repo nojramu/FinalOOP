@@ -1,0 +1,1013 @@
+@page "/cart"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@using Group5.Shared
+@using Group5.Data
+@using Group5.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Hello, @displayedUsername!</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/studentdashboard" class="nav-item">Dashboard</a>
+            <a href="/studentborrow" class="nav-item">Borrow</a>
+            <a href="/cart" class="nav-item active">Cart</a>
+            <a href="/studenthistory" class="nav-item">History</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">🛒</span> CART</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        @if (cartItems == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else if (!cartItems.Any())
+        {
+            <div class="empty-cart">
+                <p>Your cart is empty.</p>
+            </div>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(cartMessage))
+            {
+                <div class="cart-message @(cartMessage.StartsWith("✅") ? "success" : "error")">
+                    @cartMessage
+                </div>
+            }
+
+            <div class="cart-table-container">
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>Department</th>
+                            <th>Item Name</th>
+                            <th>Quantity</th>
+                            <th>Max Allowed</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in cartItems)
+                        {
+                            var inventoryInfo = itemLimits.FirstOrDefault(i => i.ItemName == item.ItemName && i.Department == item.Department);
+                            <tr>
+                                <td><div class="dept-badge">@GetDepartmentShortName(item.Department)</div></td>
+                                <td><strong>@item.ItemName</strong></td>
+                                <td>
+                                    @if (editing)
+                                    {
+                                        <div class="quantity-controls">
+                                            <button class="qty-btn" @onclick="() => DecreaseQuantity(item.Id)" disabled="@(item.Quantity <= 1)">−</button>
+                                            <span class="qty-display">@item.Quantity</span>
+                                            <button class="qty-btn" @onclick="() => IncreaseQuantity(item.Id)" 
+                                                    disabled="@(inventoryInfo != null && item.Quantity >= inventoryInfo.MaxPerStudent)">+</button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="qty-static">@item.Quantity</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (inventoryInfo != null)
+                                    {
+                                        <span class="max-info">@inventoryInfo.MaxPerStudent</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="max-info">-</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (editing)
+                                    {
+                                        <button class="btn-delete" @onclick="() => DeleteItem(item.Id)">🗑️ Delete</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="cart-summary">
+                <div class="summary-info">
+                    <span>Total Items: <strong>@cartItems.Sum(i => i.Quantity)</strong></span>
+                    <span>Total Types: <strong>@cartItems.Count</strong></span>
+                </div>
+            </div>
+
+            <div class="cart-actions">
+                <button class="btn-edit" @onclick="ToggleEdit">@((editing ? "✓ Done Editing" : "✏️ Edit Cart"))</button>
+                <button class="btn-confirm" @onclick="ConfirmCart" disabled="@editing">📋 PROCEED TO BORROW</button>
+            </div>
+        }
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout {
+    display: flex;
+    min-height: 100vh;
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+}
+
+/* === Sidebar === */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+    z-index: 100;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.profile-section {
+    text-align: center;
+    padding: 40px 30px 32px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.profile-section::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.profile-section h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.9;
+    color: #ffffff;
+}
+
+.profile-pic {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.profile-pic::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.profile-pic:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.profile-pic:hover::before {
+    opacity: 1;
+}
+
+.logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+    color: #8B0000;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(139, 0, 0, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.logout-btn:hover:not(:disabled)::before {
+    width: 300px;
+    height: 300px;
+}
+
+.logout-btn:hover:not(:disabled) {
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+}
+
+.logout-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.nav-menu {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 24px 20px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 3px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    transform: translate(10px, -50%) scale(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    padding-left: 28px;
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+.nav-item:hover::before {
+    transform: scaleY(1);
+}
+
+.nav-item:hover::after {
+    transform: translate(-12px, -50%) scale(1);
+}
+
+.nav-item.active {
+    color: #ffffff;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    padding-left: 28px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1);
+    border-left-color: #ffffff;
+}
+
+.nav-item.active::before {
+    transform: scaleY(1);
+}
+
+.nav-item.active::after {
+    transform: translate(-12px, -50%) scale(1);
+    background: #ffffff;
+}
+
+.footer-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 24px 30px 32px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%);
+    position: relative;
+}
+
+.footer-links::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    border-radius: 2px;
+}
+
+.footer-links a {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    padding: 10px 20px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+}
+
+.footer-links a:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+/* === Main Content === */
+.main-content {
+    flex: 1;
+    margin-left: 280px;
+    padding: 40px 60px;
+    overflow-y: auto;
+    position: relative;
+    min-height: 100vh;
+}
+
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%);
+    padding: 24px 32px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.top-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.top-header .icon {
+    font-size: 2rem;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+}
+
+.email {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    letter-spacing: 0.01em;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.divider {
+    display: none;
+}
+
+/* === Cart Table === */
+.cart-table-container {
+    margin-bottom: 32px;
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.cart-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.cart-table thead {
+    background: linear-gradient(135deg, #8B0000 0%, #6B0000 100%);
+    color: white;
+}
+
+.cart-table th {
+    padding: 18px 20px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.cart-table th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.cart-table th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.cart-table th.text-end {
+    text-align: right;
+}
+
+.cart-table tbody tr {
+    border-bottom: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.cart-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.cart-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.cart-table td {
+    padding: 18px 20px;
+    font-size: 0.95rem;
+    color: #374151;
+}
+
+.cart-table td.text-end {
+    text-align: right;
+}
+
+/* === Cart Message === */
+.cart-message {
+    padding: 16px 24px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    font-weight: 500;
+    animation: slideDown 0.3s ease;
+}
+
+.cart-message.success {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+
+.cart-message.error {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+@@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* === Department Badge === */
+.dept-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 100%);
+    color: white;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(155, 27, 48, 0.2);
+}
+
+/* === Quantity Controls === */
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+}
+
+.qty-btn {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(155, 27, 48, 0.2);
+}
+
+.qty-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #C41E3A 0%, #8B0000 100%);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(155, 27, 48, 0.3);
+}
+
+.qty-btn:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+    opacity: 0.5;
+    box-shadow: none;
+}
+
+.qty-display {
+    min-width: 40px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1a1a2e;
+}
+
+.qty-static {
+    font-weight: 600;
+    color: #1a1a2e;
+    font-size: 1rem;
+}
+
+.max-info {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #f3f4f6;
+    color: #6b7280;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* === Cart Summary === */
+.cart-summary {
+    margin: 24px 0;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 12px;
+    border: 2px solid #fbbf24;
+}
+
+.summary-info {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.summary-info span {
+    color: #78350f;
+}
+
+.summary-info strong {
+    color: #92400e;
+    font-size: 1.1rem;
+    margin-left: 8px;
+}
+
+.empty-cart {
+    text-align: center;
+    padding: 80px 20px;
+    color: #9ca3af;
+    font-size: 1.1rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* === Cart Actions === */
+.cart-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.btn-edit {
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    letter-spacing: 0.02em;
+}
+
+.btn-edit:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.btn-edit:active {
+    transform: translateY(0);
+}
+
+.btn-confirm {
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.btn-confirm:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-confirm:active {
+    transform: translateY(0);
+}
+
+.btn-delete {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.btn-delete:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.btn-delete:active {
+    transform: translateY(0);
+}
+
+/* === Responsive Design === */
+@@media (max-width: 1024px) {
+    .sidebar {
+        width: 260px;
+    }
+    
+    .main-content {
+        margin-left: 260px;
+        padding: 30px 40px;
+    }
+}
+
+@@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    
+    .top-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .profile-pic {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .nav-item {
+        font-size: 0.9rem;
+        padding: 14px 18px;
+    }
+}
+</style>
+
+@code {
+    [Inject] private AppDbContext Db { get; set; } = null!;
+    [Inject] private Group5.Services.Interfaces.IInventoryService InventoryService { get; set; } = null!;
+    
+    private string displayedUsername = string.Empty;
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private List<CartItem>? cartItems;
+    private List<InventoryItem> itemLimits = new();
+    private bool editing = false;
+    private string cartMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Console.WriteLine("⚠️ Cart: No session email found; redirecting to login (/).");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedUsername = UserSession.Username;
+        displayedEmail = UserSession.Email;
+        
+        // Load cart items for this user
+        await LoadCartAsync();
+            
+        Console.WriteLine($"✅ Cart loaded. Logged in as: {displayedUsername}");
+    }
+
+    private async Task LoadCartAsync()
+    {
+        cartItems = await Db.CartItems
+            .Where(item => item.UserEmail == UserSession.Email)
+            .ToListAsync();
+
+        // Load inventory limits for validation
+        if (cartItems != null && cartItems.Any())
+        {
+            var departments = cartItems.Select(c => c.Department).Distinct().ToList();
+            itemLimits = new List<InventoryItem>();
+            
+            foreach (var dept in departments)
+            {
+                var deptItems = await InventoryService.GetDepartmentInventoryAsync(dept);
+                itemLimits.AddRange(deptItems);
+            }
+        }
+    }
+
+    private async Task IncreaseQuantity(int cartItemId)
+    {
+        var cartItem = cartItems?.FirstOrDefault(c => c.Id == cartItemId);
+        if (cartItem == null) return;
+
+        var result = await InventoryService.UpdateCartQuantityAsync(
+            cartItemId, 
+            UserSession.Email, 
+            cartItem.Quantity + 1);
+
+        if (result.Success)
+        {
+            await LoadCartAsync();
+            cartMessage = "✅ Quantity updated!";
+        }
+        else
+        {
+            cartMessage = $"❌ {result.Message}";
+        }
+
+        StateHasChanged();
+        
+        // Clear message after 3 seconds
+        _ = Task.Delay(3000).ContinueWith(_ => 
+        {
+            cartMessage = string.Empty;
+            StateHasChanged();
+        });
+    }
+
+    private async Task DecreaseQuantity(int cartItemId)
+    {
+        var cartItem = cartItems?.FirstOrDefault(c => c.Id == cartItemId);
+        if (cartItem == null || cartItem.Quantity <= 1) return;
+
+        var result = await InventoryService.UpdateCartQuantityAsync(
+            cartItemId, 
+            UserSession.Email, 
+            cartItem.Quantity - 1);
+
+        if (result.Success)
+        {
+            await LoadCartAsync();
+            cartMessage = "✅ Quantity updated!";
+        }
+        else
+        {
+            cartMessage = $"❌ {result.Message}";
+        }
+
+        StateHasChanged();
+        
+        // Clear message after 3 seconds
+        _ = Task.Delay(3000).ContinueWith(_ => 
+        {
+            cartMessage = string.Empty;
+            StateHasChanged();
+        });
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        var item = await Db.CartItems.FindAsync(id);
+        if (item != null && item.UserEmail == UserSession.Email)
+        {
+            Db.CartItems.Remove(item);
+            await Db.SaveChangesAsync();
+            await LoadCartAsync();
+            cartMessage = "✅ Item removed from cart.";
+            StateHasChanged();
+            
+            // Clear message after 3 seconds
+            _ = Task.Delay(3000).ContinueWith(_ => 
+            {
+                cartMessage = string.Empty;
+                StateHasChanged();
+            });
+        }
+    }
+
+    private void ConfirmCart()
+    {
+        if (!editing)
+        {
+            Navigation.NavigateTo("/verifyborrowlist", forceLoad: true);
+        }
+    }
+
+    private void ToggleEdit()
+    {
+        editing = !editing;
+        cartMessage = string.Empty; // Clear any messages when toggling
+        StateHasChanged();
+    }
+
+    private string GetDepartmentShortName(string department)
+    {
+        return department switch
+        {
+            "CIVIL ENGINEERING TOOLROOM" => "CE",
+            "ELECTRONICS ENGINEERING TOOLROOM" => "ECE",
+            "ELECTRICAL ENGINEERING TOOLROOM" => "EE",
+            "CHEMISTRY LABORATORY TOOLROOM" => "CHEM",
+            "PHYSICS LABORATORY TOOLROOM" => "PHYSICS",
+            _ => department.Substring(0, Math.Min(6, department.Length))
+        };
+    }
+
+    private async Task LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine("🚪 Cart: LogoutAsync invoked (SERVER side). Clearing session...");
+
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+
+            try
+            {
+                await JS.InvokeVoidAsync("console.log", "🚪 Cart: Logout clicked (CLIENT side) - clearing session & redirecting to /");
+            }
+            catch
+            {
+                // ignore any JS error here
+            }
+
+            try
+            {
+                Navigation.NavigateTo("/", forceLoad: false);
+            }
+            catch (Exception navEx)
+            {
+                Console.WriteLine($"⚠️ Navigation.NavigateTo threw: {navEx.Message}");
+            }
+
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"⚠️ Hard redirect via JS failed: {jsEx.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ LogoutAsync error: {ex.Message}");
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch { }
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}
+

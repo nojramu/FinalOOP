@@ -1,0 +1,548 @@
+@page "/verifyborrowlist"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@using Group5.Shared
+@using Group5.Data
+@using Group5.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Hello, @displayedUsername!</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/studentdashboard" class="nav-item">Dashboard</a>
+            <a href="/studentborrow" class="nav-item">Borrow</a>
+            <a href="/cart" class="nav-item active">Cart</a>
+            <a href="/studenthistory" class="nav-item">History</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">📋</span> BORROW REQUEST FORM</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        <div class="verify-section">
+            <h2 class="verify-title">VERIFY BORROW LIST</h2>
+
+            @if (cartItems == null)
+            {
+                <p><em>Loading...</em></p>
+            }
+            else if (!cartItems.Any())
+            {
+                <div class="empty-cart">
+                    <p>Your cart is empty.</p>
+                </div>
+            }
+            else
+            {
+                <!-- Cart Items Summary -->
+                <div class="form-details">
+                    <h3>📦 Items to Borrow</h3>
+                    
+                    <div class="cart-table-container">
+                        <table class="cart-table">
+                            <thead>
+                                <tr>
+                                    <th>Department</th>
+                                    <th>Item Name</th>
+                                    <th>Quantity</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in cartItems)
+                                {
+                                    <tr>
+                                        <td>@item.Department</td>
+                                        <td>@item.ItemName</td>
+                                        <td>@item.Quantity</td>
+                                        <td class="text-end">
+                                            @if (editing)
+                                            {
+                                                <button class="btn-delete" @onclick="() => DeleteCartItem(item.Id)">Delete</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="edit-button-container">
+                        <button class="btn-edit" @onclick="ToggleEdit">@((editing ? "Done Editing" : "Edit Cart"))</button>
+                    </div>
+                </div>
+
+                <!-- Form Details -->
+                <div class="form-details">
+                    <h3>📝 Borrower Information</h3>
+                    
+                    <div class="info-banner">
+                        <span class="info-icon">ℹ️</span>
+                        <p>Your account information has been automatically filled below. Please verify before submitting.</p>
+                    </div>
+
+                    <div class="form-grid">
+                    <div class="form-group">
+                            <label>Student Name</label>
+                            <input type="text" value="@studentName" readonly class="readonly-input" />
+                            <span class="field-hint">Auto-filled from your account</span>
+                    </div>
+
+                    <div class="form-group">
+                            <label>Student Number</label>
+                            <input type="text" value="@studentNumber" readonly class="readonly-input" />
+                            <span class="field-hint">Auto-filled from your account</span>
+                        </div>
+                    </div>
+
+                    <div class="professor-selection">
+                        <label>👨‍🏫 Select Professor for Approval</label>
+                        <select @bind="selectedProfessorEmail" class="professor-dropdown">
+                            <option value="">-- Choose a professor --</option>
+                            @foreach (var prof in allProfessors)
+                            {
+                                <option value="@prof.Email">@prof.Name (@prof.Email)</option>
+                            }
+                        </select>
+                        <span class="field-hint">Select the professor who will approve your request</span>
+                    </div>
+
+                    <div class="approval-info">
+                        <div class="approval-icon">✅</div>
+                        <div class="approval-text">
+                            <h4>Next Step: Professor Approval</h4>
+                            <p>The selected professor will review and approve your request. You'll be notified once it's processed.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cart-actions">
+                    <button class="btn-back" @onclick='() => Navigation.NavigateTo("/cart")'>
+                        ← Back to Cart
+                    </button>
+                    <button class="btn-confirm" 
+                            @onclick="SubmitBorrowRequest" 
+                            disabled="@(isSubmitting || string.IsNullOrEmpty(selectedProfessorEmail))">
+                        @(isSubmitting ? "⏳ SUBMITTING..." : "✅ SUBMIT FOR APPROVAL")
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="message @(message.Contains("Error") ? "error" : "success")">
+                        @message
+                    </div>
+                }
+            }
+        </div>
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout { display: flex; min-height: 100vh; font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; position: relative; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); }
+/* === Sidebar === */
+.sidebar { position: fixed; left: 0; top: 0; width: 280px; height: 100vh; background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%); color: white; display: flex; flex-direction: column; padding: 0; box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25); overflow-y: auto; z-index: 100; border-right: 1px solid rgba(255, 255, 255, 0.05); }
+.profile-section { text-align: center; padding: 40px 30px 32px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%); border-bottom: 1px solid rgba(255, 255, 255, 0.1); position: relative; }
+.profile-section::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); border-radius: 2px; }
+.profile-section h3 { margin: 0 0 20px 0; font-size: 1.1rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.9; color: #ffffff; }
+.profile-pic { width: 120px; height: 120px; margin: 0 auto 28px; display: flex; align-items: center; justify-content: center; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; padding: 15px; background: rgba(255, 255, 255, 0.08); border-radius: 50%; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+.profile-pic::before { content: ''; position: absolute; inset: -2px; border-radius: 50%; padding: 2px; background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.4s ease; }
+.profile-pic:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); }
+.profile-pic:hover::before { opacity: 1; }
+.logo-img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3)); }
+.logout-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%); color: #8B0000; border: none; border-radius: 10px; padding: 12px 24px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); letter-spacing: 0.5px; text-transform: uppercase; position: relative; overflow: hidden; }
+.logout-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; border-radius: 50%; background: rgba(139, 0, 0, 0.1); transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s; }
+.logout-btn:hover::before { width: 300px; height: 300px; }
+.logout-btn:hover { background: #ffffff; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); }
+.logout-btn:active { transform: translateY(0); }
+.nav-menu { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 24px 20px; }
+.nav-item { display: flex; align-items: center; background: transparent; color: rgba(255, 255, 255, 0.8); padding: 16px 20px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-left: 3px solid transparent; position: relative; overflow: hidden; }
+.nav-item::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 4px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4)); transform: scaleY(0); transition: transform 0.3s ease; }
+.nav-item::after { content: ''; position: absolute; right: 0; top: 50%; width: 6px; height: 6px; background: rgba(255, 255, 255, 0.6); border-radius: 50%; transform: translate(10px, -50%) scale(0); transition: transform 0.3s ease; }
+.nav-item:hover { color: #ffffff; background: rgba(255, 255, 255, 0.12); padding-left: 28px; box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05); }
+.nav-item:hover::before { transform: scaleY(1); }
+.nav-item:hover::after { transform: translate(-12px, -50%) scale(1); }
+.nav-item.active { color: #ffffff; background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%); padding-left: 28px; box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1); border-left-color: #ffffff; }
+.nav-item.active::before { transform: scaleY(1); }
+.nav-item.active::after { transform: translate(-12px, -50%) scale(1); background: #ffffff; }
+.footer-links { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 24px 30px 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%); position: relative; }
+.footer-links::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); border-radius: 2px; }
+.footer-links a { color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; font-weight: 500; text-decoration: none; transition: all 0.3s ease; padding: 10px 20px; border-radius: 8px; letter-spacing: 0.5px; }
+.footer-links a:hover { color: #ffffff; background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+/* === Main Content === */
+.main-content { flex: 1; margin-left: 280px; padding: 40px 60px; overflow-y: auto; position: relative; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); }
+.top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%); padding: 24px 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); }
+.top-header h1 { font-size: 2rem; font-weight: 700; display: flex; align-items: center; gap: 14px; margin: 0; color: #ffffff; letter-spacing: -0.02em; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+.top-header .icon { font-size: 2rem; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4)); }
+.email { color: #ffffff; font-weight: 600; font-size: 0.95rem; padding: 8px 16px; background: rgba(255, 255, 255, 0.2); border-radius: 20px; letter-spacing: 0.01em; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+.divider { display: none; }
+/* === Verify Section === */
+.verify-section { margin-bottom: 40px; }
+.section-header { margin-bottom: 28px; }
+.section-header h3 { margin: 0 0 12px 0; font-size: 1.5rem; color: #1a1a2e; font-weight: 700; letter-spacing: -0.02em; }
+.section-header p { color: #6b7280; font-size: 1rem; line-height: 1.6; }
+.forms-count { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 18px 24px; border-radius: 12px; border-left: 5px solid #fbbf24; margin-bottom: 28px; box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2); }
+.forms-count p { margin: 0; color: #78350f; font-weight: 700; font-size: 1.05rem; }
+.forms-list { display: flex; flex-direction: column; gap: 24px; }
+.form-card { background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 2px solid #e9ecef; border-left: 6px solid #fbbf24; border-radius: 16px; padding: 28px; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); animation: fadeIn 0.5s ease-out; }
+.form-card:hover { transform: translateY(-4px) scale(1.01); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15); }
+.form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 3px solid #f3f4f6; }
+.form-ref code { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 8px 14px; border-radius: 8px; font-family: 'Consolas', 'Monaco', monospace; font-size: 1rem; font-weight: 700; color: #9B1B30; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+.badge { padding: 10px 18px; border-radius: 24px; font-weight: 700; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); text-transform: uppercase; letter-spacing: 0.5px; }
+.badge.pending { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #78350f; }
+.form-body { display: flex; flex-direction: column; gap: 18px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.form-field { display: flex; flex-direction: column; gap: 8px; }
+.form-field .label { font-weight: 700; font-size: 0.9rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-field .value { font-size: 1rem; color: #1a1a2e; font-weight: 500; }
+.items-section { background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); padding: 20px; border-radius: 12px; margin-top: 12px; border: 2px dashed #d1d5db; }
+.dept-group { margin: 12px 0; }
+.dept-name { color: #1a1a2e; font-size: 1.05rem; font-weight: 700; }
+.items-list { margin: 8px 0 0 24px; list-style: none; }
+.items-list li { margin: 6px 0; color: #4b5563; font-weight: 500; position: relative; padding-left: 16px; }
+.items-list li::before { content: '▸'; position: absolute; left: 0; color: #9B1B30; font-weight: 700; }
+.form-actions { margin-top: 20px; padding-top: 20px; border-top: 3px solid #f3f4f6; display: flex; gap: 12px; justify-content: flex-end; }
+.btn-approve { padding: 14px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-size: 1rem; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3); text-transform: uppercase; letter-spacing: 0.5px; }
+.btn-approve:hover { background: linear-gradient(135deg, #059669 0%, #047857 100%); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4); }
+.btn-approve:active { transform: translateY(0); }
+.btn-reject { padding: 14px 32px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-size: 1rem; box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3); text-transform: uppercase; letter-spacing: 0.5px; }
+.btn-reject:hover { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(239, 68, 68, 0.4); }
+.btn-reject:active { transform: translateY(0); }
+.empty-state { text-align: center; padding: 100px 40px; color: #9ca3af; }
+.empty-state p { font-size: 1.3rem; margin: 12px 0; font-weight: 600; }
+.message { margin-top: 24px; padding: 18px 24px; border-radius: 12px; font-weight: 600; text-align: center; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); animation: slideIn 0.3s ease-out; }
+.message.success { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #064e3b; border: 2px solid #10b981; }
+.message.error { background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%); color: #7f1d1d; border: 2px solid #ef4444; }
+/* === Animations === */
+@@keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.form-card:nth-child(1) { animation-delay: 0.05s; }
+.form-card:nth-child(2) { animation-delay: 0.1s; }
+.form-card:nth-child(3) { animation-delay: 0.15s; }
+
+/* === Form Details Enhancements === */
+.form-details { background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); padding: 32px; border-radius: 16px; border: 2px solid #e9ecef; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); margin-top: 24px; }
+.form-details h3 { margin: 0 0 24px 0; font-size: 1.5rem; color: #1a1a2e; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+
+.info-banner { background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); padding: 16px 20px; border-radius: 12px; border-left: 5px solid #ffc107; margin-bottom: 28px; display: flex; align-items: center; gap: 14px; animation: slideDown 0.4s ease-out; }
+.info-icon { font-size: 1.5rem; flex-shrink: 0; }
+.info-banner p { margin: 0; color: #856404; font-weight: 600; font-size: 0.95rem; line-height: 1.5; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+.form-group { display: flex; flex-direction: column; gap: 8px; }
+.form-group label { font-weight: 700; font-size: 0.95rem; color: #495057; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-group input { padding: 14px 18px; border: 2px solid #dee2e6; border-radius: 10px; font-size: 1rem; transition: all 0.3s ease; font-weight: 500; }
+.form-group input:not(.readonly-input):focus { outline: none; border-color: #9B1B30; box-shadow: 0 0 0 4px rgba(155, 27, 48, 0.1); }
+.readonly-input { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important; color: #495057 !important; cursor: not-allowed; font-weight: 600; }
+.field-hint { font-size: 0.85rem; color: #6c757d; font-style: italic; }
+
+.approval-info { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 24px; border-radius: 12px; border-left: 5px solid #10b981; display: flex; align-items: flex-start; gap: 18px; }
+.approval-icon { font-size: 2rem; flex-shrink: 0; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1)); }
+.approval-text h4 { margin: 0 0 8px 0; color: #065f46; font-size: 1.1rem; font-weight: 700; }
+.approval-text p { margin: 0; color: #047857; font-size: 0.95rem; line-height: 1.6; }
+
+/* === Enhanced Cart Actions === */
+.cart-actions { display: flex; gap: 16px; justify-content: flex-end; margin-top: 32px; padding-top: 24px; border-top: 3px solid #e9ecef; }
+.btn-back { padding: 14px 28px; background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3); text-transform: uppercase; letter-spacing: 0.5px; }
+.btn-back:hover { background: linear-gradient(135deg, #5a6268 0%, #545b62 100%); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4); }
+.btn-confirm { padding: 14px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); text-transform: uppercase; letter-spacing: 0.5px; position: relative; overflow: hidden; }
+.btn-confirm::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.3); transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s; }
+.btn-confirm:hover::before { width: 300px; height: 300px; }
+.btn-confirm:hover { background: linear-gradient(135deg, #059669 0%, #047857 100%); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); }
+.btn-confirm:disabled { background: linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%); cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-confirm:active:not(:disabled) { transform: translateY(0); }
+
+/* === Cart Table === */
+.cart-table-container { margin-top: 24px; overflow-x: auto; }
+.cart-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+.cart-table thead { background: linear-gradient(135deg, #9B1B30 0%, #8B0000 100%); color: white; }
+.cart-table th { padding: 16px 20px; text-align: left; font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.cart-table th.text-end { text-align: right; }
+.cart-table tbody tr { border-bottom: 1px solid #e9ecef; transition: all 0.2s ease; }
+.cart-table tbody tr:hover { background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f5 100%); }
+.cart-table tbody tr:last-child { border-bottom: none; }
+.cart-table td { padding: 16px 20px; color: #1a1a2e; font-size: 1rem; font-weight: 500; }
+.cart-table td.text-end { text-align: right; }
+.edit-button-container { margin-top: 20px; display: flex; justify-content: flex-end; }
+.btn-edit { padding: 12px 24px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); text-transform: uppercase; letter-spacing: 0.5px; }
+.btn-edit:hover { background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4); }
+.btn-edit:active { transform: translateY(0); }
+.btn-delete { padding: 8px 16px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+.btn-delete:hover { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); }
+.btn-delete:active { transform: translateY(0); }
+
+/* === Professor Selection === */
+.professor-selection { margin: 24px 0; }
+.professor-selection label { font-weight: 700; font-size: 1rem; color: #1a1a2e; margin-bottom: 10px; display: block; }
+.professor-dropdown { width: 100%; padding: 14px 18px; border: 2px solid #dee2e6; border-radius: 10px; font-size: 1rem; transition: all 0.3s ease; font-weight: 500; background: white; cursor: pointer; }
+.professor-dropdown:focus { outline: none; border-color: #9B1B30; box-shadow: 0 0 0 4px rgba(155, 27, 48, 0.1); }
+.professor-dropdown option { padding: 10px; }
+
+/* === Responsive Design === */
+@@media (max-width: 1024px) { .sidebar { width: 260px; } .main-content { margin-left: 260px; padding: 30px 40px; } }
+@@media (max-width: 768px) { .sidebar { width: 100%; height: auto; position: relative; } .main-content { margin-left: 0; padding: 20px; } .top-header { flex-direction: column; gap: 16px; align-items: flex-start; } .form-row { grid-template-columns: 1fr; } .form-actions { flex-direction: column; } }
+</style>
+
+
+
+@code {
+    [Inject] private AppDbContext Db { get; set; } = null!;
+    
+    private string displayedUsername = string.Empty;
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private List<CartItem>? cartItems;
+    private string studentName = string.Empty;
+    private string studentNumber = string.Empty;
+    private string selectedProfessorEmail = string.Empty;
+    private List<User> allProfessors = new();
+    private bool editing = false;
+    private bool isSubmitting = false;
+    private string message = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserSession.Email))
+        {
+            Console.WriteLine("⚠️ VerifyBorrowList: No session email found; redirecting to login (/).");
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedUsername = UserSession.Username;
+        displayedEmail = UserSession.Email;
+
+        // Load cart items for this user
+        cartItems = await Db.CartItems
+            .Where(item => item.UserEmail == UserSession.Email)
+            .ToListAsync();
+
+        // Get student information
+        var user = await Db.Users.FirstOrDefaultAsync(u => u.Email == UserSession.Email);
+        studentName = user?.Name ?? user?.Username ?? UserSession.Username;
+        studentNumber = user?.StudentNumber ?? string.Empty;
+
+        // Load all professors from database
+        allProfessors = await Db.Users
+            .Where(u => u.Role == "Professor")
+            .OrderBy(u => u.Username)
+            .ToListAsync();
+
+        Console.WriteLine($"✅ VerifyBorrowList loaded. Logged in as: {displayedUsername}");
+        Console.WriteLine($"📋 Loaded {allProfessors.Count} professors");
+    }
+
+    private async Task DeleteCartItem(int id)
+    {
+        var item = await Db.CartItems.FindAsync(id);
+        if (item != null && item.UserEmail == UserSession.Email)
+        {
+            Db.CartItems.Remove(item);
+            await Db.SaveChangesAsync();
+            cartItems = await Db.CartItems
+                .Where(cartItem => cartItem.UserEmail == UserSession.Email)
+                .ToListAsync();
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleEdit()
+    {
+        editing = !editing;
+        StateHasChanged();
+    }
+
+    private async Task SubmitBorrowRequest()
+    {
+        message = string.Empty;
+
+        // Name and number are auto-filled from account, so they should always be present
+        // But double-check for safety
+        if (string.IsNullOrWhiteSpace(studentName) || string.IsNullOrWhiteSpace(studentNumber))
+        {
+            message = "Error: Student information is missing. Please try logging in again.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedProfessorEmail))
+        {
+            message = "Error: Please select a professor to review your request.";
+            return;
+        }
+
+        if (cartItems == null || !cartItems.Any())
+        {
+            message = "Error: Your cart is empty.";
+            return;
+        }
+
+        try
+        {
+            isSubmitting = true;
+            StateHasChanged();
+
+            // Generate reference code
+            string year = DateTime.Now.Year.ToString();
+            string randomPart = GenerateRandomCode(5);
+            string refCode = $"BRW-{year}-{randomPart}";
+
+            // Create borrow form with selected professor
+            var borrowForm = new BorrowForm
+            {
+                ReferenceCode = refCode,
+                StudentName = studentName,
+                StudentNumber = studentNumber,
+                StudentEmail = UserSession.Email,
+                ProfessorEmail = selectedProfessorEmail, // Selected professor will receive this
+                SubjectCode = string.Empty, // No subject required
+                SubmittedAt = DateTime.Now,
+                IsApproved = null,
+                ProcessedAt = null,
+                ProcessedBy = string.Empty,
+                RejectionReason = string.Empty,
+                IsIssued = false,
+                IsReturned = false
+            };
+
+            // Add the form first
+            Db.BorrowForms.Add(borrowForm);
+            
+            // Now add items - EF Core will handle the relationship
+            foreach (var cartItem in cartItems)
+            {
+                var borrowItem = new BorrowFormItem
+                {
+                    Department = cartItem.Department,
+                    ItemName = cartItem.ItemName,
+                    Quantity = cartItem.Quantity,
+                    BorrowForm = borrowForm // Set the navigation property
+                };
+                borrowForm.Items.Add(borrowItem);
+            }
+            
+            // Clear cart from database
+            Db.CartItems.RemoveRange(cartItems);
+            
+            // Save everything
+            await Db.SaveChangesAsync();
+
+            Console.WriteLine($"✅ Borrow form submitted! Reference: {refCode}");
+            Console.WriteLine($"📧 Form assigned to professor: {selectedProfessorEmail}");
+            Console.WriteLine($"📋 Form status: IsApproved={borrowForm.IsApproved}, IsIssued={borrowForm.IsIssued}");
+            message = $"✅ Form submitted successfully! Reference: {refCode}";
+
+            // Wait a moment to show success message
+            await Task.Delay(1500);
+
+            // Navigate back to dashboard
+            Navigation.NavigateTo("/studentdashboard", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error submitting borrow request: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"❌ Inner Exception: {ex.InnerException.Message}");
+                message = $"Error: {ex.InnerException.Message}";
+            }
+            else
+            {
+            message = $"Error: {ex.Message}";
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GenerateRandomCode(int length)
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        var random = new Random();
+        return new string(Enumerable.Repeat(chars, length)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+
+    private async Task LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine("🚪 VerifyBorrowList: LogoutAsync invoked (SERVER side). Clearing session...");
+
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+
+            try
+            {
+                await JS.InvokeVoidAsync("console.log", "🚪 VerifyBorrowList: Logout clicked (CLIENT side) - clearing session & redirecting to /");
+            }
+            catch
+            {
+                // ignore any JS error here
+            }
+
+            try
+            {
+                Navigation.NavigateTo("/", forceLoad: false);
+            }
+            catch (Exception navEx)
+            {
+                Console.WriteLine($"⚠️ Navigation.NavigateTo threw: {navEx.Message}");
+            }
+
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"⚠️ Hard redirect via JS failed: {jsEx.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ LogoutAsync error: {ex.Message}");
+            try
+            {
+                await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+            }
+            catch { }
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}
+

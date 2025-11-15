@@ -1,0 +1,570 @@
+@page "/viewdatabase"
+@inject NavigationManager Navigation
+@inject Group5.Data.AppDbContext Db
+@inject IJSRuntime JS
+@using Group5.Data
+@using Group5.Models
+@using Group5.Shared
+@using Microsoft.EntityFrameworkCore
+@using System.Linq
+@using System.Collections.Generic
+@rendermode InteractiveServer
+
+<div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <h3>Administrator</h3>
+            <div class="profile-pic">
+                <img src="/images/ENLOGO.png" alt="EN Logo" class="logo-img" />
+            </div>
+            <button class="logout-btn" @onclick="LogoutAsync" disabled="@isLoggingOut">@logoutButtonText</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/admindashboard" class="nav-item">Overview</a>
+            <a href="/adminforms" class="nav-item">All Forms</a>
+            <a href="/adminstock" class="nav-item">Stock</a>
+            <a href="/adminissue" class="nav-item">Issue Items</a>
+            <a href="/adminreturns" class="nav-item">Returns</a>
+            <a href="/viewdatabase" class="nav-item active">View Users</a>
+        </nav>
+
+        <div class="footer-links">
+            <a href="/help">Need help?</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1><span class="icon">👥</span> USER MANAGEMENT</h1>
+            <span class="email">@displayedEmail</span>
+        </header>
+
+        <hr class="divider" />
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="message success">
+                @successMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="message error">
+                @errorMessage
+            </div>
+        }
+
+        <!-- Student Accounts -->
+        <section class="user-section">
+            <div class="section-header">
+                <h3>👨‍🎓 Student Accounts (@(students?.Count ?? 0))</h3>
+            </div>
+            @if (students != null && students.Any())
+            {
+                <div class="table-container">
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Name</th>
+                                <th>Student Number</th>
+                                <th>Email Verified</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in students)
+                            {
+                                <tr>
+                                    <td>@user.Id</td>
+                                    <td>@user.Username</td>
+                                    <td>@user.Email</td>
+                                    <td>@user.Name</td>
+                                    <td>@user.StudentNumber</td>
+                                    <td>@(user.IsEmailVerified ? "✓ Yes" : "✗ No")</td>
+                                    <td>@user.CreatedAtUtc.ToString("MM/dd/yyyy HH:mm")</td>
+                                    <td>
+                                        <button class="btn-delete" @onclick="() => DeleteUser(user.Id)" disabled="@isDeleting">
+                                            @if (isDeleting && deletingUserId == user.Id)
+                                            {
+                                                <text>Deleting...</text>
+                                            }
+                                            else
+                                            {
+                                                <text>Delete</text>
+                                            }
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="empty-message">No student accounts found.</p>
+            }
+        </section>
+
+        <!-- Professor Accounts -->
+        <section class="user-section">
+            <div class="section-header">
+                <h3>👨‍🏫 Professor Accounts (@(professors?.Count ?? 0))</h3>
+            </div>
+            @if (professors != null && professors.Any())
+            {
+                <div class="table-container">
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Name</th>
+                                <th>Email Verified</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in professors)
+                            {
+                                <tr>
+                                    <td>@user.Id</td>
+                                    <td>@user.Username</td>
+                                    <td>@user.Email</td>
+                                    <td>@user.Name</td>
+                                    <td>@(user.IsEmailVerified ? "✓ Yes" : "✗ No")</td>
+                                    <td>@user.CreatedAtUtc.ToString("MM/dd/yyyy HH:mm")</td>
+                                    <td>
+                                        <button class="btn-delete" @onclick="() => DeleteUser(user.Id)" disabled="@isDeleting">
+                                            @if (isDeleting && deletingUserId == user.Id)
+                                            {
+                                                <text>Deleting...</text>
+                                            }
+                                            else
+                                            {
+                                                <text>Delete</text>
+                                            }
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="empty-message">No professor accounts found.</p>
+            }
+        </section>
+
+        <!-- Administrator Accounts -->
+        <section class="user-section">
+            <div class="section-header">
+                <h3>👨‍💼 Administrator Accounts (@(administrators?.Count ?? 0))</h3>
+            </div>
+            @if (administrators != null && administrators.Any())
+            {
+                <div class="table-container">
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Name</th>
+                                <th>Email Verified</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in administrators)
+                            {
+                                <tr>
+                                    <td>@user.Id</td>
+                                    <td>@user.Username</td>
+                                    <td>@user.Email</td>
+                                    <td>@user.Name</td>
+                                    <td>@(user.IsEmailVerified ? "✓ Yes" : "✗ No")</td>
+                                    <td>@user.CreatedAtUtc.ToString("MM/dd/yyyy HH:mm")</td>
+                                    <td>
+                                        <button class="btn-delete" @onclick="() => DeleteUser(user.Id)" disabled="@isDeleting">
+                                            @if (isDeleting && deletingUserId == user.Id)
+                                            {
+                                                <text>Deleting...</text>
+                                            }
+                                            else
+                                            {
+                                                <text>Delete</text>
+                                            }
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="empty-message">No administrator accounts found.</p>
+            }
+        </section>
+
+        <!-- Action Buttons -->
+        <div class="button-group">
+            <button class="btn-primary" @onclick="RefreshData" disabled="@(isDeleting || isResettingIds)">
+                🔄 Refresh Data
+            </button>
+            <button class="btn-warning" @onclick="ResetUserIdsByRole" disabled="@(isDeleting || isResettingIds)">
+                @if (isResettingIds)
+                {
+                    <text>Resetting IDs...</text>
+                }
+                else
+                {
+                    <text>🔢 Reset IDs (Per Role)</text>
+                }
+            </button>
+        </div>
+    </main>
+</div>
+
+<style>
+/* === Layout === */
+.layout { display: flex; min-height: 100vh; font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; position: relative; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); }
+/* === Sidebar === */
+.sidebar { position: fixed; left: 0; top: 0; width: 280px; height: 100vh; background: linear-gradient(180deg, #9B1B30 0%, #6B0F1A 50%, #4A0000 100%); color: white; display: flex; flex-direction: column; padding: 0; box-shadow: 6px 0 32px rgba(0, 0, 0, 0.25); overflow-y: auto; z-index: 100; border-right: 1px solid rgba(255, 255, 255, 0.05); }
+.profile-section { text-align: center; padding: 40px 30px 32px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%); border-bottom: 1px solid rgba(255, 255, 255, 0.1); position: relative; }
+.profile-section::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); border-radius: 2px; }
+.profile-section h3 { margin: 0 0 20px 0; font-size: 1.1rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.9; color: #ffffff; }
+.profile-pic { width: 120px; height: 120px; margin: 0 auto 28px; display: flex; align-items: center; justify-content: center; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; padding: 15px; background: rgba(255, 255, 255, 0.08); border-radius: 50%; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+.profile-pic::before { content: ''; position: absolute; inset: -2px; border-radius: 50%; padding: 2px; background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.4s ease; }
+.profile-pic:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); }
+.profile-pic:hover::before { opacity: 1; }
+.logo-img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3)); }
+.logout-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%); color: #8B0000; border: none; border-radius: 10px; padding: 12px 24px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); letter-spacing: 0.5px; text-transform: uppercase; position: relative; overflow: hidden; }
+.logout-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; border-radius: 50%; background: rgba(139, 0, 0, 0.1); transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s; }
+.logout-btn:hover::before { width: 300px; height: 300px; }
+.logout-btn:hover { background: #ffffff; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); }
+.logout-btn:active { transform: translateY(0); }
+.nav-menu { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 24px 20px; }
+.nav-item { display: flex; align-items: center; background: transparent; color: rgba(255, 255, 255, 0.8); padding: 16px 20px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-left: 3px solid transparent; position: relative; overflow: hidden; }
+.nav-item::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 4px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4)); transform: scaleY(0); transition: transform 0.3s ease; }
+.nav-item::after { content: ''; position: absolute; right: 0; top: 50%; width: 6px; height: 6px; background: rgba(255, 255, 255, 0.6); border-radius: 50%; transform: translate(10px, -50%) scale(0); transition: transform 0.3s ease; }
+.nav-item:hover { color: #ffffff; background: rgba(255, 255, 255, 0.12); padding-left: 28px; box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05); }
+.nav-item:hover::before { transform: scaleY(1); }
+.nav-item:hover::after { transform: translate(-12px, -50%) scale(1); }
+.nav-item.active { color: #ffffff; background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%); padding-left: 28px; box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1); border-left-color: #ffffff; }
+.nav-item.active::before { transform: scaleY(1); }
+.nav-item.active::after { transform: translate(-12px, -50%) scale(1); background: #ffffff; }
+.footer-links { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 24px 30px 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%); position: relative; }
+.footer-links::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 3px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); border-radius: 2px; }
+.footer-links a { color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; font-weight: 500; text-decoration: none; transition: all 0.3s ease; padding: 10px 20px; border-radius: 8px; letter-spacing: 0.5px; }
+.footer-links a:hover { color: #ffffff; background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+/* === Main Content === */
+.main-content { flex: 1; margin-left: 280px; padding: 40px 60px; overflow-y: auto; position: relative; min-height: 100vh; }
+.top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; background: linear-gradient(135deg, #9B1B30 0%, #C41E3A 50%, #8B0000 100%); padding: 24px 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(155, 27, 48, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); }
+.top-header h1 { font-size: 2rem; font-weight: 700; display: flex; align-items: center; gap: 14px; margin: 0; color: #ffffff; letter-spacing: -0.02em; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+.top-header .icon { font-size: 2rem; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4)); }
+.email { color: #ffffff; font-weight: 600; font-size: 0.95rem; padding: 8px 16px; background: rgba(255, 255, 255, 0.2); border-radius: 20px; letter-spacing: 0.01em; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+.divider { display: none; }
+/* === Messages === */
+.message { margin: 0 0 24px 0; padding: 18px 24px; border-radius: 12px; font-weight: 600; text-align: center; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); animation: slideIn 0.3s ease-out; }
+.message.success { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #064e3b; border: 2px solid #10b981; }
+.message.error { background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%); color: #7f1d1d; border: 2px solid #ef4444; }
+/* === User Sections === */
+.user-section { margin-bottom: 40px; }
+.section-header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+.section-header h2 { font-size: 1.5rem; color: #1a1a2e; font-weight: 700; letter-spacing: -0.02em; margin: 0; display: flex; align-items: center; gap: 12px; }
+.user-count { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; color: #4b5563; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+/* === Tables === */
+.table-container { background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border-radius: 16px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); overflow: hidden; border: 2px solid #e9ecef; animation: fadeIn 0.5s ease-out; }
+.user-table { width: 100%; border-collapse: collapse; }
+.user-table thead { background: linear-gradient(135deg, #9B1B30 0%, #8B1B30 100%); }
+.user-table thead tr th { padding: 16px 20px; text-align: left; font-weight: 700; font-size: 0.9rem; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #7B1B30; }
+.user-table tbody tr { transition: all 0.3s ease; border-bottom: 1px solid #f3f4f6; }
+.user-table tbody tr:hover { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); transform: scale(1.01); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+.user-table tbody tr:last-child { border-bottom: none; }
+.user-table tbody tr td { padding: 16px 20px; color: #1a1a2e; font-weight: 500; font-size: 0.95rem; }
+.role-badge { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); }
+.role-badge.student { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1e40af; }
+.role-badge.professor { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #064e3b; }
+.role-badge.admin { background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%); color: #7f1d1d; }
+.empty-state { text-align: center; padding: 60px 40px; color: #9ca3af; }
+.empty-state p { font-size: 1.2rem; margin: 12px 0; font-weight: 600; }
+/* === Animations === */
+@@keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.user-section:nth-child(1) .table-container { animation-delay: 0.05s; }
+.user-section:nth-child(2) .table-container { animation-delay: 0.15s; }
+.user-section:nth-child(3) .table-container { animation-delay: 0.25s; }
+/* === Responsive Design === */
+@@media (max-width: 1024px) { .sidebar { width: 260px; } .main-content { margin-left: 260px; padding: 30px 40px; } }
+@@media (max-width: 768px) { .sidebar { width: 100%; height: auto; position: relative; } .main-content { margin-left: 0; padding: 20px; } .top-header { flex-direction: column; gap: 16px; align-items: flex-start; } .user-table { font-size: 0.85rem; } .user-table thead tr th, .user-table tbody tr td { padding: 12px 14px; } }
+</style>
+
+
+
+@code {
+    private string displayedEmail = string.Empty;
+    private bool isLoggingOut = false;
+    private string logoutButtonText = "Log Out";
+    private List<Group5.Models.User>? students;
+    private List<Group5.Models.User>? professors;
+    private List<Group5.Models.User>? administrators;
+    private bool isDeleting = false;
+    private bool isResettingIds = false;
+    private int? deletingUserId = null;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Add a delay to allow session to be established
+        await Task.Delay(200);
+
+        // Check if user is logged in and is Administrator
+        Console.WriteLine($"🔍 ViewDatabase - Checking session: Email='{UserSession.Email}', Role='{UserSession.Role}'");
+        Console.WriteLine($"🔍 ViewDatabase - IsLoggedIn: {UserSession.IsLoggedIn}");
+
+        if (string.IsNullOrWhiteSpace(UserSession.Email) || UserSession.Role != "Administrator")
+        {
+            Console.WriteLine($"⚠️ ViewDatabase - Session check failed. Email: '{UserSession.Email}', Role: '{UserSession.Role}'");
+            errorMessage = "Access Denied. Only Administrators can view this page. Please log in again.";
+            StateHasChanged();
+            await Task.Delay(2000);
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        displayedEmail = UserSession.Email;
+        Console.WriteLine($"✅ ViewDatabase - Access granted for {UserSession.Email} ({UserSession.Role})");
+
+        // Reset any stuck states
+        isDeleting = false;
+        isResettingIds = false;
+        deletingUserId = null;
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var allUsers = await Db.Users.ToListAsync();
+        students = allUsers.Where(u => u.Role == "Student").OrderBy(u => u.Username).ToList();
+        professors = allUsers.Where(u => u.Role == "Professor").OrderBy(u => u.Username).ToList();
+        administrators = allUsers.Where(u => u.Role == "Administrator").OrderBy(u => u.Username).ToList();
+        StateHasChanged();
+    }
+
+    private async Task RefreshData()
+    {
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+        await LoadData();
+        successMessage = "✅ Data refreshed successfully!";
+        StateHasChanged();
+
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            successMessage = string.Empty;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task DeleteUser(int userId)
+    {
+        if (isDeleting) return;
+
+        isDeleting = true;
+        deletingUserId = userId;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var user = await Db.Users.FindAsync(userId);
+            if (user != null)
+            {
+                Db.Users.Remove(user);
+                await Db.SaveChangesAsync();
+                successMessage = $"✅ User '{user.Username}' (ID: {userId}) has been deleted successfully.";
+
+                // Reload data
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = $"❌ User with ID {userId} not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"❌ Error deleting user: {ex.Message}";
+        }
+        finally
+        {
+            isDeleting = false;
+            deletingUserId = null;
+            StateHasChanged();
+
+            if (!string.IsNullOrEmpty(successMessage))
+            {
+                _ = Task.Delay(3000).ContinueWith(_ =>
+                {
+                    successMessage = string.Empty;
+                    InvokeAsync(StateHasChanged);
+                });
+            }
+        }
+    }
+
+    private async Task ResetUserIdsByRole()
+    {
+        if (isResettingIds) return;
+
+        isResettingIds = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var connection = Db.Database.GetDbConnection();
+            await connection.OpenAsync();
+
+            using var transaction = await connection.BeginTransactionAsync();
+
+            try
+            {
+                var roles = new[] { "Student", "Professor", "Administrator" };
+                int totalReset = 0;
+
+                foreach (var role in roles)
+                {
+                    var usersInRole = await Db.Users
+                        .Where(u => u.Role == role)
+                        .OrderBy(u => u.Id)
+                        .ToListAsync();
+
+                    if (usersInRole.Any())
+                    {
+                        var idMapping = new Dictionary<int, int>();
+                        int newId = 1;
+
+                        foreach (var user in usersInRole)
+                        {
+                            idMapping[user.Id] = newId;
+                            newId++;
+                        }
+
+                        foreach (var mapping in idMapping)
+                        {
+                            var oldId = mapping.Key;
+                            var newIdValue = mapping.Value;
+
+                            var updateCmd = connection.CreateCommand();
+                            updateCmd.Transaction = transaction;
+                            updateCmd.CommandText = $"UPDATE Users SET Id = -{newIdValue} WHERE Id = {oldId} AND Role = '{role}'";
+                            await updateCmd.ExecuteNonQueryAsync();
+                        }
+
+                        foreach (var mapping in idMapping)
+                        {
+                            var newIdValue = mapping.Value;
+
+                            var updateCmd = connection.CreateCommand();
+                            updateCmd.Transaction = transaction;
+                            updateCmd.CommandText = $"UPDATE Users SET Id = {newIdValue} WHERE Id = -{newIdValue} AND Role = '{role}'";
+                            await updateCmd.ExecuteNonQueryAsync();
+                        }
+
+                        totalReset += usersInRole.Count;
+                    }
+                }
+
+                var allUsers = await Db.Users.ToListAsync();
+                var maxId = allUsers.Any() ? allUsers.Max(u => u.Id) : 0;
+
+                var sequenceCmd = connection.CreateCommand();
+                sequenceCmd.Transaction = transaction;
+                sequenceCmd.CommandText = "DELETE FROM sqlite_sequence WHERE name = 'Users'";
+                await sequenceCmd.ExecuteNonQueryAsync();
+
+                if (maxId > 0)
+                {
+                    var insertSeqCmd = connection.CreateCommand();
+                    insertSeqCmd.Transaction = transaction;
+                    insertSeqCmd.CommandText = $"INSERT INTO sqlite_sequence (name, seq) VALUES ('Users', {maxId})";
+                    await insertSeqCmd.ExecuteNonQueryAsync();
+                }
+
+                await transaction.CommitAsync();
+
+                successMessage = $"✅ Successfully reset IDs per role. Students, Professors, and Administrators now each start from ID 1.";
+                await LoadData();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+            finally
+            {
+                await connection.CloseAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"❌ Error resetting IDs: {ex.Message}";
+        }
+        finally
+        {
+            isResettingIds = false;
+            StateHasChanged();
+
+            if (!string.IsNullOrEmpty(successMessage))
+            {
+                _ = Task.Delay(3000).ContinueWith(_ =>
+                {
+                    successMessage = string.Empty;
+                    InvokeAsync(StateHasChanged);
+                });
+            }
+        }
+    }
+
+    private void LogoutAsync()
+    {
+        isLoggingOut = true;
+        logoutButtonText = "Logging out...";
+        StateHasChanged();
+
+        try
+        {
+            UserSession.Email = string.Empty;
+            UserSession.Username = string.Empty;
+            UserSession.Role = string.Empty;
+            Navigation.NavigateTo("/", forceLoad: false);
+        }
+        finally
+        {
+            isLoggingOut = false;
+            logoutButtonText = "Log Out";
+            StateHasChanged();
+        }
+    }
+}
+
