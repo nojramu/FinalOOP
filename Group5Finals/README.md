@@ -1,4 +1,4 @@
-# 🏛️ University Toolroom Management System (UTMS)
+# 🏛️ UE - Engineering Borrowing System (UE-EBS)
 
 A comprehensive laboratory equipment and tool borrowing management system built with ASP.NET Core Blazor Server for the **University of the East (UE)**.
 
@@ -6,7 +6,7 @@ A modern, user-friendly web application designed for managing toolroom inventory
 
 ## 🎯 Overview
 
-UTMS is an educational project demonstrating full-stack web development using ASP.NET Core Blazor Server and SQLite. It showcases essential concepts including:
+UE-EBS is an educational project demonstrating full-stack web development using ASP.NET Core Blazor Server and SQLite. It showcases essential concepts including:
 
 - 🏗️ Entity Framework Core for database operations
 - 🎨 Blazor Server for interactive, real-time UI
@@ -1113,4 +1113,5 @@ Thank you for using UTMS!
 **Built with ❤️ for learning and development**
 
 *University of the East - Engineering Toolroom Management System*
+
 
