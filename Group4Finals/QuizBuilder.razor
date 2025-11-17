@@ -1,0 +1,550 @@
+@page "/quizbuilder/{quizId:int}"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@using System.Linq
+@inject NavigationManager Navigation
+@inject QuizService QuizService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<h2 style="font-family:'Poppins';color:#333;">📝 Quiz Builder</h2>
+
+<div style="max-width: 800px; margin: 20px auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <input type="text" @bind="quizTitle" placeholder="Untitled Quiz" 
+           style="width:100%;font-size:24px;padding:10px;border:none;border-bottom:2px solid #ddd;margin-bottom:15px;outline:none;" />
+    <textarea @bind="quizDescription" placeholder="Quiz description..." 
+              style="width:100%;height:60px;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:20px;"></textarea>
+
+    <div style="margin-bottom:20px;padding:15px;background:#e7f3ff;border-radius:8px;border:2px solid #4a90e2;">
+        <label style="display:flex;align-items:center;gap:10px;font-weight:bold;color:#333;cursor:pointer;">
+            <input type="checkbox" @bind="isPrivate" 
+                   style="width:20px;height:20px;cursor:pointer;" />
+            <span>🔒 Make this quiz private (requires quiz code to access)</span>
+        </label>
+        <small style="display:block;color:#666;margin-top:5px;font-size:12px;margin-left:30px;">
+            @if (isPrivate)
+            {
+                <text>🔒 Private: Only students with the quiz code can access this quiz.</text>
+            }
+            else
+            {
+                <text>🌍 Public: All students can see and take this quiz without a code.</text>
+            }
+        </small>
+    </div>
+
+    @if (isPrivate)
+    {
+        <div style="margin-bottom:20px;padding:15px;background:#fff3cd;border-radius:8px;border:1px solid #ffc107;">
+            <label style="display:block;font-weight:bold;margin-bottom:8px;color:#333;">
+                🔑 Quiz Code
+            </label>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <input type="text" @bind="quizCode" placeholder="Enter quiz code (e.g., ABC123)" 
+                       maxlength="20"
+                       style="flex:1;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:16px;text-transform:uppercase;" 
+                       @oninput="OnQuizCodeInput" />
+                <button @onclick="GenerateQuizCode" 
+                        type="button"
+                        style="background:#ffc107;color:#333;padding:8px 15px;border:none;border-radius:5px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                    Generate
+                </button>
+            </div>
+            <small style="display:block;color:#666;margin-top:5px;font-size:12px;">
+                Students will use this code to access the quiz. Leave empty or generate a random code.
+            </small>
+        </div>
+    }
+
+    <div style="margin-bottom:20px;padding:15px;background:#f8f9fa;border-radius:8px;border:2px solid #61c2a2;">
+        <label style="display:block;font-weight:bold;margin-bottom:12px;color:#333;">
+            ⏱️ Quiz Timing Mode <span style="color:#d9534f;">*</span>
+        </label>
+        <div style="display:flex;gap:20px;margin-bottom:15px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="radio" name="timingMode" value="whole" @onchange="@(() => { 
+                    useWholeQuizTimer = true; 
+                    // Clear all question timers when switching to whole quiz timer
+                    foreach (var q in questions)
+                    {
+                        q.HasQuestionTimer = false;
+                        q.TimeLimit = null;
+                    }
+                    UpdateTotalTime(); 
+                })" 
+                       checked="@useWholeQuizTimer" />
+                <span style="font-weight:600;">⏱️ Whole Quiz Timer</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="radio" name="timingMode" value="perQuestion" @onchange="@(() => { 
+                    useWholeQuizTimer = false; 
+                    UpdateTotalTime(); 
+                })" 
+                       checked="@(!useWholeQuizTimer)" />
+                <span style="font-weight:600;">⏱️ Per Question Timer</span>
+            </label>
+        </div>
+        
+        @if (useWholeQuizTimer)
+        {
+            <div>
+                <label style="display:block;font-weight:bold;margin-bottom:8px;color:#333;">
+                    Total Quiz Time Limit (Minutes) <span style="color:#d9534f;">*</span>
+                </label>
+                <input type="number" @bind="totalTimeLimit" min="1" 
+                       style="width:150px;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:16px;" 
+                       required />
+                <small style="display:block;color:#666;margin-top:5px;font-size:12px;">
+                    Set the total time limit for the entire quiz. Students will have this amount of time to complete all questions.
+                </small>
+            </div>
+        }
+        else
+        {
+            <div>
+                <label style="display:block;font-weight:bold;margin-bottom:8px;color:#333;">
+                    Total Quiz Time Limit (Minutes) <span style="color:#d9534f;">*</span>
+                </label>
+                <input type="number" value="@CalculateTotalTime()" 
+                       readonly
+                       style="width:150px;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:16px;background-color:#e9ecef;cursor:not-allowed;" />
+                <small style="display:block;color:#666;margin-top:5px;font-size:12px;">
+                    Automatically calculated from the sum of all question time limits. Set individual time limits for each question below.
+                </small>
+            </div>
+        }
+    </div>
+
+    <h3>Questions</h3>
+
+    @for (int questionIndex = 0; questionIndex < questions.Count; questionIndex++)
+    {
+        var q = questions[questionIndex];
+        var uniqueId = q.Id > 0 ? q.Id : questionIndex; // Use Id if exists, otherwise use index
+        
+        <div style="border:1px solid #ddd;padding:15px;border-radius:10px;margin-bottom:15px;">
+            <input type="text" @bind="q.QuestionText" placeholder="Enter question" 
+                   style="width:100%;padding:8px;border:none;border-bottom:1px solid #ccc;margin-bottom:10px;" />
+
+            <select @bind="q.Type" style="padding:8px;margin-bottom:10px;">
+                <option>Multiple Choice</option>
+                <option>Identification</option>
+                <option>True or False</option>
+            </select>
+
+            @if (q.Type == "Multiple Choice")
+            {
+                @for (int i = 0; i < q.Options.Count; i++)
+                {
+                    int index = i;
+                    <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+                        <input type="radio" name="@($"correct_{uniqueId}")" value="@index" 
+                               @onchange="@(() => SetCorrectAnswer(q, index))" 
+                               checked="@(q.CorrectAnswerIndex == index)" />
+                        <span style="min-width:20px;font-weight:bold;">@(char.ConvertFromUtf32(65 + index))</span>
+                        <input type="text" @bind="q.Options[index]" @bind:after="() => q.SyncOptionsToJson()" 
+                               placeholder="Option" 
+                               style="flex:1;padding:6px;border:1px solid #ccc;border-radius:5px;" />
+                    </div>
+                }
+                <button @onclick="() => AddOption(q)" type="button" style="margin-top:5px;cursor:pointer;" 
+                        disabled="@(q.Options.Count >= 4)">+ Add Option</button>
+                @if (q.Options.Count > 2)
+                {
+                    <button @onclick="() => RemoveOption(q)" type="button" style="margin-top:5px;margin-left:5px;cursor:pointer;">- Remove Option</button>
+                }
+            }
+            else if (q.Type == "True or False")
+            {
+                <div>
+                    <label style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+                        <input type="radio" name="@($"correct_{uniqueId}")" value="true" @onchange="@(() => SetCorrectAnswer(q, "true"))" 
+                               checked="@(q.CorrectAnswer == "true")" />
+                        True
+                    </label>
+                    <label style="display:flex;align-items:center;gap:5px;">
+                        <input type="radio" name="@($"correct_{uniqueId}")" value="false" @onchange="@(() => SetCorrectAnswer(q, "false"))" 
+                               checked="@(q.CorrectAnswer == "false")" />
+                        False
+                    </label>
+                </div>
+            }
+            else if (q.Type == "Identification")
+            {
+                <div style="margin-bottom:10px;">
+                    <label style="font-weight:bold;display:block;margin-bottom:5px;">Correct Answers (comma-separated):</label>
+                    <input type="text" @bind="q.CorrectAnswer" placeholder="Enter correct answers separated by commas" 
+                           style="width:100%;padding:6px;border:1px solid #ccc;border-radius:5px;" />
+                    <small style="color:#666;font-size:12px;">Example: "UML", "Unified Modelling Language", "Unified Modeling Language"</small>
+                </div>
+            }
+
+            @if (!useWholeQuizTimer)
+            {
+                <div style="margin-top:15px;padding:10px;background:#f0f8ff;border-radius:8px;border:1px solid #b0d4f1;">
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" @bind="q.HasQuestionTimer" 
+                               @bind:after="@(() => { if (q.HasQuestionTimer && !q.TimeLimit.HasValue) q.TimeLimit = 60; else if (!q.HasQuestionTimer) q.TimeLimit = null; UpdateTotalTime(); })"
+                               style="width:18px;height:18px;cursor:pointer;" />
+                        <span style="font-weight:bold;color:#333;">⏱️ Set Time Limit for This Question (Seconds)</span>
+                    </label>
+                    @if (q.HasQuestionTimer)
+                    {
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <input type="number" value="@GetQuestionTimeLimitSeconds(q)" 
+                                   @onchange="@((ChangeEventArgs e) => SetQuestionTimeLimitSeconds(q, e))" 
+                                   min="1" 
+                                   placeholder="Seconds" 
+                                   style="width:120px;padding:6px;border:1px solid #ccc;border-radius:5px;" />
+                            <span style="color:#666;font-size:14px;">seconds</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <small style="color:#666;font-size:12px;">Enable to set a time limit for this specific question.</small>
+                    }
+                </div>
+            }
+
+            <button @onclick="() => RemoveQuestion(q)" type="button" style="margin-top:10px;color:#fff;background:#d9534f;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;">Delete</button>
+        </div>
+    }
+
+    <button @onclick="AddQuestion" 
+            type="button"
+            style="background:#61c2a2;color:white;padding:10px 20px;border:none;border-radius:6px;margin-top:10px;cursor:pointer;">
+        + Add Question
+    </button>
+
+    <button @onclick="@(async () => await SaveQuiz())" 
+            type="button"
+            style="background:#48a583;color:white;padding:10px 20px;border:none;border-radius:6px;margin-top:10px;margin-left:10px;cursor:pointer;position:relative;z-index:100;">
+        ✅ Save Quiz
+    </button>
+</div>
+
+@code {
+    [Parameter] public int quizId { get; set; }
+
+    private string quizTitle = "";
+    private string quizDescription = "";
+    private string quizCode = "";
+    private int totalTimeLimit = 60; // Default to 60 minutes
+    private bool isPrivate = false; // Default to public
+    private List<Question> questions = new();
+    private bool useWholeQuizTimer = true; // Default to whole quiz timer
+
+    private bool isPublished = false;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            Console.WriteLine($"OnInitialized: Loading quiz {quizId}");
+            // Load existing quiz or create new one
+            var existingQuiz = QuizService.GetQuizById(quizId);
+            
+            if (existingQuiz != null)
+            {
+                Console.WriteLine($"Found existing quiz: {existingQuiz.Title}, Questions: {existingQuiz.Questions?.Count ?? 0}");
+                quizTitle = existingQuiz.Title ?? $"New Quiz #{quizId}";
+                quizDescription = existingQuiz.Description ?? "";
+                quizCode = existingQuiz.QuizCode ?? "";
+                totalTimeLimit = existingQuiz.TotalTimeLimit;
+                isPrivate = existingQuiz.IsPrivate;
+                isPublished = existingQuiz.IsPublished;
+                questions = existingQuiz.Questions?.ToList() ?? new();
+                
+                // Initialize HasQuestionTimer property for existing questions
+                bool hasQuestionTimers = false;
+                foreach (var q in questions)
+                {
+                    q.HasQuestionTimer = q.TimeLimit.HasValue;
+                    if (q.HasQuestionTimer)
+                    {
+                        hasQuestionTimers = true;
+                    }
+                    // Ensure Options are loaded
+                    var _ = q.Options;
+                }
+                
+                // Determine timing mode: if any question has a timer, use per-question mode
+                // Otherwise, use whole quiz timer mode
+                useWholeQuizTimer = !hasQuestionTimers;
+                
+                // If using whole quiz timer, keep the loaded totalTimeLimit
+                // If using per-question timer, calculate from question time limits
+                if (!useWholeQuizTimer)
+                {
+                    totalTimeLimit = CalculateTotalTime();
+                }
+                
+                Console.WriteLine($"Loaded quiz {quizId}: {questions.Count} questions, IsPublished: {isPublished}, TimingMode: {(useWholeQuizTimer ? "Whole Quiz" : "Per Question")}");
+            }
+            else
+            {
+                Console.WriteLine($"Quiz {quizId} not found, creating new quiz");
+                quizTitle = $"New Quiz #{quizId}";
+                quizDescription = "";
+                quizCode = "";
+                totalTimeLimit = 60;
+                isPrivate = false;
+                isPublished = false;
+                questions = new List<Question>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in OnInitialized: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            questions = new List<Question>();
+        }
+    }
+
+    private void AddQuestion()
+    {
+        Console.WriteLine($"Adding new question. Current count: {questions.Count}");
+        var newQuestion = new Question
+        {
+            Type = "Multiple Choice",
+            Options = new List<string> { "", "" },
+            CorrectAnswerIndex = -1,
+            CorrectAnswer = ""
+        };
+        questions.Add(newQuestion);
+        Console.WriteLine($"Question added. New count: {questions.Count}");
+        UpdateTotalTime(); // Update total time when question is added
+        StateHasChanged(); // Force UI update
+    }
+
+    private void AddOption(Question q)
+    {
+        if (q.Options.Count < 4)
+        {
+            q.Options.Add("");
+            q.SyncOptionsToJson();
+        }
+    }
+
+    private void RemoveOption(Question q)
+    {
+        if (q.Options.Count > 2)
+        {
+            q.Options.RemoveAt(q.Options.Count - 1);
+            q.SyncOptionsToJson();
+            if (q.CorrectAnswerIndex >= q.Options.Count)
+                q.CorrectAnswerIndex = -1;
+        }
+    }
+
+    private void RemoveQuestion(Question q)
+    {
+        questions.Remove(q);
+        UpdateTotalTime();
+    }
+
+    private void SetCorrectAnswer(Question q, int index) => q.CorrectAnswerIndex = index;
+    private void SetCorrectAnswer(Question q, string answer) => q.CorrectAnswer = answer;
+
+    // Helper methods for time limit in seconds
+    private int GetQuestionTimeLimitSeconds(Question q)
+    {
+        if (q.TimeLimit.HasValue)
+        {
+            return q.TimeLimit.Value;
+        }
+        return 60; // Default to 60 seconds
+    }
+
+    private void SetQuestionTimeLimitSeconds(Question q, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int seconds) && seconds > 0)
+        {
+            // Store directly in seconds
+            q.TimeLimit = seconds;
+            UpdateTotalTime();
+        }
+    }
+
+    private int CalculateTotalTime()
+    {
+        // Only calculate from question timers if using per-question timer mode
+        if (useWholeQuizTimer)
+        {
+            return totalTimeLimit; // Return the manually set total time
+        }
+        
+        int totalSeconds = 0;
+        foreach (var q in questions)
+        {
+            if (q.HasQuestionTimer && q.TimeLimit.HasValue)
+            {
+                // Add seconds directly
+                totalSeconds += q.TimeLimit.Value;
+            }
+        }
+        // Convert total seconds to minutes for display (round up)
+        int totalMinutes = totalSeconds > 0 ? (int)Math.Ceiling(totalSeconds / 60.0) : 1; // Minimum 1 minute
+        // Update the totalTimeLimit field
+        totalTimeLimit = totalMinutes;
+        return totalTimeLimit;
+    }
+
+    private void UpdateTotalTime()
+    {
+        if (!useWholeQuizTimer)
+        {
+            totalTimeLimit = CalculateTotalTime();
+        }
+        StateHasChanged();
+    }
+
+    private void OnQuizCodeInput(ChangeEventArgs e)
+    {
+        quizCode = e.Value?.ToString()?.ToUpper() ?? "";
+    }
+
+    private void GenerateQuizCode()
+    {
+        var random = new Random();
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        quizCode = new string(Enumerable.Range(0, 6)
+            .Select(_ => chars[random.Next(chars.Length)])
+            .ToArray());
+    }
+
+    private async Task SaveQuiz()
+    {
+        Console.WriteLine("💾 Save Quiz button clicked!");
+        
+        // Validate total time limit
+        if (totalTimeLimit < 1)
+        {
+            Console.WriteLine("⚠️ Total time limit must be at least 1 minute.");
+            await JSRuntime.InvokeVoidAsync("alert", "⚠️ Total time limit must be at least 1 minute.");
+            return;
+        }
+
+        // Validate that there are questions
+        if (questions == null || questions.Count == 0)
+        {
+            Console.WriteLine("⚠️ Please add at least one question before saving.");
+            await JSRuntime.InvokeVoidAsync("alert", "⚠️ Please add at least one question before saving.");
+            return;
+        }
+
+        // Filter out empty questions and validate questions have content
+        Console.WriteLine($"Total questions in list: {questions.Count}");
+        foreach (var q in questions)
+        {
+            Console.WriteLine($"  Question: '{q.QuestionText}' (Type: {q.Type}, HasText: {!string.IsNullOrWhiteSpace(q.QuestionText)})");
+        }
+        
+        var validQuestions = questions.Where(q => !string.IsNullOrWhiteSpace(q.QuestionText)).ToList();
+        Console.WriteLine($"Valid questions (with text): {validQuestions.Count}");
+        
+        if (validQuestions.Count == 0)
+        {
+            Console.WriteLine("⚠️ Please add at least one question with text before saving.");
+            await JSRuntime.InvokeVoidAsync("alert", "⚠️ Please add at least one question with text before saving.");
+            return;
+        }
+
+        Console.WriteLine($"💾 Saving quiz {quizId} with {validQuestions.Count} questions (filtered from {questions.Count})...");
+
+        // Clear TimeLimit for questions where timer is disabled (only if using per-question timer)
+        // If using whole quiz timer, clear all question timers
+        foreach (var q in validQuestions)
+        {
+            if (useWholeQuizTimer)
+            {
+                // Clear all question timers when using whole quiz timer
+                q.TimeLimit = null;
+                q.HasQuestionTimer = false;
+            }
+            else if (!q.HasQuestionTimer)
+            {
+                // Clear timer only if disabled in per-question mode
+                q.TimeLimit = null;
+            }
+            // Ensure Options are synced to JSON before saving
+            q.SyncOptionsToJson();
+            Console.WriteLine($"  - Question: {q.QuestionText} (Type: {q.Type}, Options: {q.Options?.Count ?? 0})");
+        }
+
+        // Recalculate total time before saving (only if using per-question timer)
+        if (!useWholeQuizTimer)
+        {
+            totalTimeLimit = CalculateTotalTime();
+        }
+
+        var quiz = new Quiz
+        {
+            Id = quizId,
+            Title = string.IsNullOrWhiteSpace(quizTitle) ? "Untitled Quiz" : quizTitle,
+            Description = quizDescription,
+            QuizCode = string.IsNullOrWhiteSpace(quizCode) ? null : quizCode.Trim().ToUpper(),
+            TotalTimeLimit = totalTimeLimit,
+            IsPrivate = isPrivate,
+            IsPublished = isPublished, // Preserve the published status
+            UserId = 0, // Will be preserved by UpdateQuiz if quiz exists, or set by AddQuiz if new
+            Questions = validQuestions.ToList() // Use only valid questions
+        };
+
+        try
+        {
+            Console.WriteLine($"💾 Saving quiz with IsPublished: {isPublished}");
+            Console.WriteLine($"💾 Quiz has {quiz.Questions.Count} questions to save");
+            
+            // Log each question before saving
+            foreach (var q in quiz.Questions)
+            {
+                Console.WriteLine($"  Question: '{q.QuestionText}' | Type: {q.Type} | Options: {q.Options?.Count ?? 0} | CorrectAnswerIndex: {q.CorrectAnswerIndex} | CorrectAnswer: '{q.CorrectAnswer}'");
+            }
+            
+            QuizService.UpdateQuiz(quiz);
+            Console.WriteLine($"💾 Saved: {quiz.Title} ({quiz.Questions.Count} questions, {totalTimeLimit} min total time, IsPublished: {isPublished})");
+            
+            // Wait a bit for database to complete
+            await Task.Delay(300);
+            
+            // Verify the save worked
+            var verifyQuiz = QuizService.GetQuizById(quizId);
+            if (verifyQuiz != null)
+            {
+                Console.WriteLine($"✅ Verification: Quiz has {verifyQuiz.Questions?.Count ?? 0} questions in database");
+                
+                // Log each saved question
+                if (verifyQuiz.Questions != null && verifyQuiz.Questions.Count > 0)
+                {
+                    foreach (var q in verifyQuiz.Questions)
+                    {
+                        Console.WriteLine($"  Saved Question: '{q.QuestionText}' | Type: {q.Type}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️ WARNING: Quiz saved but has 0 questions!");
+                    await JSRuntime.InvokeVoidAsync("alert", "⚠️ Quiz saved but questions were not saved. Please check the console for details.");
+                    return; // Don't navigate away if questions weren't saved
+                }
+            }
+            else
+            {
+                Console.WriteLine($"❌ Verification failed: Quiz not found after save!");
+                await JSRuntime.InvokeVoidAsync("alert", "❌ Error: Quiz was not saved. Please try again.");
+                return; // Don't navigate away if save failed
+            }
+            
+            await JSRuntime.InvokeVoidAsync("alert", $"✅ Quiz saved successfully with {verifyQuiz.Questions.Count} questions!");
+            Navigation.NavigateTo("/createquiz");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error saving quiz: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            await JSRuntime.InvokeVoidAsync("alert", $"❌ Error saving quiz: {ex.Message}");
+            // Don't navigate away if save failed
+        }
+    }
+}

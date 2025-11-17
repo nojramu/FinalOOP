@@ -1,0 +1,363 @@
+@startuml SmartQuiz_OOP_Structure
+
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam classFontSize 10
+skinparam classFontStyle bold
+
+' ============================================
+' BASE CLASSES AND INTERFACES
+' ============================================
+
+abstract class BaseEntity {
+    +int Id {get; set}
+    --
+    +{abstract} bool Validate()
+    +{virtual} string GetDisplayName()
+    .. Demonstrates: ABSTRACTION, INHERITANCE ..
+}
+
+interface IQuestionType {
+    +bool ValidateAnswer(string studentAnswer)
+    +string GetCorrectAnswerDisplay()
+    +string GetQuestionTypeName()
+    .. Demonstrates: ABSTRACTION, POLYMORPHISM ..
+}
+
+abstract class BaseService {
+    #DbContextFactory DbContextFactory
+    --
+    +BaseService(DbContextFactory dbContextFactory)
+    +{virtual} void LogOperation(string operation, string details)
+    +{virtual} T ExecuteWithErrorHandling<T>(Func<T> operation, T defaultValue)
+    .. Demonstrates: INHERITANCE, ABSTRACTION ..
+}
+
+' ============================================
+' MODELS - INHERITANCE FROM BaseEntity
+' ============================================
+
+class Quiz {
+    -string? _title
+    -string? _description
+    -string? _quizCode
+    -bool _isPublished
+    -bool _isPrivate
+    -int _totalTimeLimit
+    +string? Title {get; set}
+    +string? Description {get; set}
+    +string? QuizCode {get; set}
+    +bool IsPrivate {get; set}
+    +bool IsPublished {get; set}
+    +int TotalTimeLimit {get; set}
+    +int UserId {get; set}
+    +List<Question> Questions {get; set}
+    --
+    +bool Validate()
+    +string GetDisplayName()
+    +bool CanBePublished()
+    .. Demonstrates: ENCAPSULATION, INHERITANCE ..
+}
+
+class Question {
+    -string _questionText
+    -List<string>? _options
+    +string QuestionText {get; set}
+    +string Type {get; set}
+    +string OptionsJson {get; set}
+    +List<string> Options {get; set}
+    +int CorrectAnswerIndex {get; set}
+    +string CorrectAnswer {get; set}
+    +int? TimeLimit {get; set}
+    +bool HasQuestionTimer {get; set}
+    +int QuizId {get; set}
+    +Quiz? Quiz {get; set}
+    --
+    +void SyncOptionsToJson()
+    +bool Validate()
+    +string GetDisplayName()
+    .. Demonstrates: ENCAPSULATION, INHERITANCE ..
+}
+
+class User {
+    +int Id {get; set}
+    +string Name {get; set}
+    +string Email {get; set}
+    +string Password {get; set}
+    +string Role {get; set}
+    +string Bio {get; set}
+    +string PhotoPath {get; set}
+}
+
+class QuizAttempt {
+    +int Id {get; set}
+    +int QuizId {get; set}
+    +int StudentId {get; set}
+    +string? StudentName {get; set}
+    +DateTime SubmittedAt {get; set}
+    +int CorrectAnswers {get; set}
+    +int TotalQuestions {get; set}
+    +double Score {get; set}
+    +List<StudentAnswer> Answers {get; set}
+}
+
+class StudentAnswer {
+    +int Id {get; set}
+    +int QuizAttemptId {get; set}
+    +int QuestionId {get; set}
+    +string? AnswerText {get; set}
+    +bool IsCorrect {get; set}
+}
+
+class Notification {
+    +int Id {get; set}
+    +int StudentId {get; set}
+    +string Type {get; set}
+    +string Title {get; set}
+    +string Message {get; set}
+    +int? QuizId {get; set}
+    +int? QuizAttemptId {get; set}
+    +double? Score {get; set}
+    +DateTime CreatedAt {get; set}
+    +bool IsRead {get; set}
+}
+
+' ============================================
+' QUESTION TYPES - INHERITANCE AND POLYMORPHISM
+' ============================================
+
+class MultipleChoiceQuestion {
+    -int _correctAnswerIndex
+    -List<string> _options
+    +int CorrectAnswerIndex {get; set}
+    +List<string> Options {get; set}
+    --
+    +bool ValidateAnswer(string studentAnswer)
+    +string GetCorrectAnswerDisplay()
+    +string GetQuestionTypeName()
+    +void AddOption(string option)
+    .. Demonstrates: INHERITANCE, POLYMORPHISM, ENCAPSULATION ..
+}
+
+class TrueFalseQuestion {
+    -string _correctAnswer
+    +string CorrectAnswer {get; set}
+    --
+    +bool ValidateAnswer(string studentAnswer)
+    +string GetCorrectAnswerDisplay()
+    +string GetQuestionTypeName()
+    .. Demonstrates: INHERITANCE, POLYMORPHISM, ENCAPSULATION ..
+}
+
+class IdentificationQuestion {
+    -List<string> _acceptableAnswers
+    +string CorrectAnswer {get; set}
+    +List<string> AcceptableAnswers {get; readonly}
+    --
+    -void SetAcceptableAnswers(string answers)
+    +bool ValidateAnswer(string studentAnswer)
+    +string GetCorrectAnswerDisplay()
+    +string GetQuestionTypeName()
+    .. Demonstrates: INHERITANCE, POLYMORPHISM, ENCAPSULATION ..
+}
+
+class QuestionFactory {
+    +{static} IQuestionType CreateQuestionType(Question question)
+    -{static} MultipleChoiceQuestion CreateMultipleChoiceQuestion(Question question)
+    -{static} TrueFalseQuestion CreateTrueFalseQuestion(Question question)
+    -{static} IdentificationQuestion CreateIdentificationQuestion(Question question)
+    .. Demonstrates: POLYMORPHISM, ENCAPSULATION, FACTORY PATTERN ..
+}
+
+' ============================================
+' SERVICE INTERFACES - ABSTRACTION
+' ============================================
+
+interface IQuizService {
+    +void AddQuiz(Quiz quiz)
+    +void UpdateQuiz(Quiz quiz)
+    +void DeleteQuiz(int id)
+    +Quiz? GetQuizById(int id)
+    +List<Quiz> GetPublishedQuizzes()
+    +List<Quiz> GetUnpublishedQuizzes()
+    +List<Quiz> GetAllQuizzes()
+    +List<Quiz> GetAllPublishedQuizzesForStudents()
+    +Quiz? GetQuizByIdForStudent(int quizId)
+    +Quiz? GetQuizByCodeForStudent(string quizCode)
+    .. Demonstrates: ABSTRACTION, LOW COUPLING ..
+}
+
+interface IQuizAttemptService {
+    +int SaveQuizAttempt(int quizId, int studentId, string studentName, Dictionary<int, string> selectedAnswers, Quiz quiz)
+    +List<QuizAttempt> GetQuizAttempts(int quizId)
+    +QuizAttempt? GetQuizAttempt(int attemptId, int quizId)
+    +List<QuizAttempt> GetStudentQuizAttempts(int studentId)
+    +bool HasStudentTakenQuiz(int quizId, int studentId)
+    +QuizAttempt? GetStudentQuizAttempt(int quizId, int studentId)
+    +void DeleteQuizAttempt(int attemptId, int quizId)
+    .. Demonstrates: ABSTRACTION, LOW COUPLING ..
+}
+
+interface INotificationService {
+    +List<Notification> GetStudentNotifications(int studentId)
+    +void CreateNotification(int studentId, string type, string title, string message, int? quizId, int? quizAttemptId, double? score)
+    +void MarkAsRead(int notificationId)
+    +bool DeleteNotification(int notificationId, int studentId)
+    .. Demonstrates: ABSTRACTION, LOW COUPLING ..
+}
+
+' ============================================
+' SERVICE IMPLEMENTATIONS
+' ============================================
+
+class QuizService {
+    -DbContextFactory _dbContextFactory
+    -UserSessionService _userSession
+    --
+    +QuizService(DbContextFactory dbContextFactory, UserSessionService userSession)
+    -AppDbContext GetUserContext()
+    -void EnsureIsPrivateColumnExists(AppDbContext context, int userId)
+    +void AddQuiz(Quiz quiz)
+    +void UpdateQuiz(Quiz quiz)
+    +void DeleteQuiz(int id)
+    +Quiz? GetQuizById(int id)
+    +List<Quiz> GetPublishedQuizzes()
+    +List<Quiz> GetUnpublishedQuizzes()
+    +List<Quiz> GetAllQuizzes()
+    +List<Quiz> GetAllPublishedQuizzesForStudents()
+    +Quiz? GetQuizByIdForStudent(int quizId)
+    +Quiz? GetQuizByCodeForStudent(string quizCode)
+    .. Demonstrates: COHESION, LOW COUPLING ..
+}
+
+class QuizAttemptService {
+    -DbContextFactory _dbContextFactory
+    -UserSessionService _userSession
+    --
+    +QuizAttemptService(DbContextFactory dbContextFactory, UserSessionService userSession)
+    -void EnsureQuizAttemptTablesExist(AppDbContext context)
+    -AppDbContext GetTeacherContext(int quizId)
+    +int SaveQuizAttempt(int quizId, int studentId, string studentName, Dictionary<int, string> selectedAnswers, Quiz quiz)
+    +List<QuizAttempt> GetQuizAttempts(int quizId)
+    +QuizAttempt? GetQuizAttempt(int attemptId, int quizId)
+    +List<QuizAttempt> GetStudentQuizAttempts(int studentId)
+    +bool HasStudentTakenQuiz(int quizId, int studentId)
+    +QuizAttempt? GetStudentQuizAttempt(int quizId, int studentId)
+    +void DeleteQuizAttempt(int attemptId, int quizId)
+    .. Demonstrates: COHESION, LOW COUPLING ..
+}
+
+class NotificationService {
+    -DbContextFactory _dbContextFactory
+    --
+    +NotificationService(DbContextFactory dbContextFactory)
+    +List<Notification> GetStudentNotifications(int studentId)
+    +void CreateNotification(int studentId, string type, string title, string message, int? quizId, int? quizAttemptId, double? score)
+    +void MarkAsRead(int notificationId)
+    +bool DeleteNotification(int notificationId, int studentId)
+    .. Demonstrates: COHESION, LOW COUPLING ..
+}
+
+' ============================================
+' INHERITANCE RELATIONSHIPS
+' ============================================
+
+BaseEntity <|-- Quiz : inherits
+BaseEntity <|-- Question : inherits
+Question <|-- MultipleChoiceQuestion : inherits
+Question <|-- TrueFalseQuestion : inherits
+Question <|-- IdentificationQuestion : inherits
+
+' ============================================
+' INTERFACE IMPLEMENTATIONS
+' ============================================
+
+IQuestionType <|.. MultipleChoiceQuestion : implements
+IQuestionType <|.. TrueFalseQuestion : implements
+IQuestionType <|.. IdentificationQuestion : implements
+
+IQuizService <|.. QuizService : implements
+IQuizAttemptService <|.. QuizAttemptService : implements
+INotificationService <|.. NotificationService : implements
+
+' ============================================
+' ASSOCIATIONS
+' ============================================
+
+Quiz "1" *-- "many" Question : contains
+QuizAttempt "1" *-- "many" StudentAnswer : contains
+QuizAttempt "1" --> "1" Quiz : references
+StudentAnswer "1" --> "1" Question : references
+Notification "1" --> "0..1" Quiz : references
+Notification "1" --> "0..1" QuizAttempt : references
+User "1" --> "many" Quiz : creates
+
+' ============================================
+' DEPENDENCIES
+' ============================================
+
+QuestionFactory ..> Question : uses
+QuestionFactory ..> IQuestionType : creates
+QuestionFactory ..> MultipleChoiceQuestion : creates
+QuestionFactory ..> TrueFalseQuestion : creates
+QuestionFactory ..> IdentificationQuestion : creates
+
+QuizService ..> IQuizService : implements
+QuizAttemptService ..> IQuizAttemptService : implements
+NotificationService ..> INotificationService : implements
+
+QuizService ..> DbContextFactory : uses
+QuizAttemptService ..> DbContextFactory : uses
+NotificationService ..> DbContextFactory : uses
+
+' ============================================
+' NOTES AND LEGENDS
+' ============================================
+
+note right of BaseEntity
+  **ABSTRACTION**
+  - Defines common structure
+  - Abstract methods force implementation
+  - Virtual methods allow overriding
+end note
+
+note right of IQuestionType
+  **POLYMORPHISM**
+  - Same interface, different behaviors
+  - Allows interchangeable use
+  - Enables extensibility
+end note
+
+note right of MultipleChoiceQuestion
+  **ENCAPSULATION**
+  - Private fields (_correctAnswerIndex)
+  - Controlled access via properties
+  - Validation in setters
+end note
+
+note right of QuizService
+  **COHESION**
+  - Single responsibility
+  - Well-focused methods
+  - Easy to maintain
+end note
+
+note right of IQuizService
+  **LOW COUPLING**
+  - Depend on interface, not implementation
+  - Easy to test and modify
+  - Flexible architecture
+end note
+
+legend right
+  |= OOP Concept |= Demonstration |
+  | **Encapsulation** | Private fields with controlled access |
+  | **Inheritance** | BaseEntity → Quiz, Question |
+  | **Polymorphism** | IQuestionType implementations |
+  | **Abstraction** | Interfaces and abstract classes |
+  | **Cohesion** | Well-focused class responsibilities |
+  | **Low Coupling** | Interface-based dependencies |
+endlegend
+
+@enduml
+

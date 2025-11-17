@@ -1,0 +1,662 @@
+@page "/quiz-results/{attemptId:int}"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@using System.Linq
+@inject NavigationManager Navigation
+@inject QuizAttemptService QuizAttemptService
+@inject QuizService QuizService
+@inject UserSessionService UserSessionService
+@rendermode InteractiveServer
+
+<PageTitle>Quiz Results</PageTitle>
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+.results-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+    min-height: 100vh;
+}
+
+.results-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    text-align: center;
+}
+
+.results-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.score-display {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #61c2a2;
+    margin: 20px 0;
+}
+
+.score-info {
+    color: #7f8c8d;
+    font-size: 1.1rem;
+}
+
+.question-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.question-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.question-number {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.status-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.status-correct {
+    background: #5cb85c;
+    color: white;
+}
+
+.status-incorrect {
+    background: #d9534f;
+    color: white;
+}
+
+.question-text {
+    font-size: 1.1rem;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+
+.answer-section {
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.student-answer {
+    background: #f8f9fa;
+    border-left: 4px solid #61c2a2;
+}
+
+.correct-answer {
+    background: #d4edda;
+    border-left: 4px solid #5cb85c;
+}
+
+.answer-label {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+
+.answer-text {
+    color: #2c3e50;
+    font-size: 1rem;
+}
+
+.back-button {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.back-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(97, 194, 162, 0.4);
+}
+
+.loading {
+    text-align: center;
+    color: white;
+    font-size: 1.2rem;
+    padding: 50px;
+}
+
+.error {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 25px;
+    text-align: center;
+    color: #d9534f;
+}
+
+.leaderboard-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.leaderboard-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.leaderboard-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.leaderboard-item.current-user {
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+    border-color: #61c2a2;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.rank-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+    color: white;
+}
+
+.rank-1 {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+}
+
+.rank-2 {
+    background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+}
+
+.rank-3 {
+    background: linear-gradient(135deg, #CD7F32, #B87333);
+}
+
+.rank-0 {
+    background: #e0e0e0;
+    color: #666;
+}
+
+.student-info {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.student-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.you-badge {
+    background: #61c2a2;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.student-score {
+    font-weight: 700;
+    color: #61c2a2;
+    font-size: 1.1rem;
+}
+
+.no-leaderboard {
+    text-align: center;
+    padding: 30px;
+    color: #7f8c8d;
+    font-style: italic;
+}
+</style>
+
+<div class="results-container">
+    @if (loading)
+    {
+        <div class="loading">Loading quiz results...</div>
+    }
+    else if (error != null)
+    {
+        <div class="error">
+            <h3>Error</h3>
+            <p>@error</p>
+            <button class="back-button" @onclick="GoBack">Go Back</button>
+        </div>
+    }
+    else if (attempt != null && quiz != null)
+    {
+        <div class="results-header">
+            <h1 class="results-title">@quiz.Title</h1>
+            <div class="score-display">@FormatScore(attempt.Score)</div>
+            <div class="score-info">
+                You got @attempt.CorrectAnswers out of @attempt.TotalQuestions questions correct
+            </div>
+            <div class="score-info" style="margin-top: 10px; font-size: 0.9rem; color: #999;">
+                Submitted on @FormatDate(attempt.SubmittedAt)
+            </div>
+        </div>
+
+        @for (int i = 0; i < quiz.Questions.Count; i++)
+        {
+            var question = quiz.Questions.OrderBy(q => q.Id).ElementAt(i);
+            int questionIndex = i + 1;
+            
+            // Try to find answer by QuestionId first, but if not found, try by question order/index
+            var studentAnswer = attempt.Answers?.FirstOrDefault(a => a.QuestionId == question.Id);
+            
+            // If not found by ID, try to match by question order (for cases where quiz was edited after submission)
+            if (studentAnswer == null && attempt.Answers != null && attempt.Answers.Count > i)
+            {
+                // Match by order: assume answers are saved in the same order as questions
+                var answersOrdered = attempt.Answers.OrderBy(a => a.QuestionId).ToList();
+                if (i < answersOrdered.Count)
+                {
+                    studentAnswer = answersOrdered[i];
+                    Console.WriteLine($"Question {questionIndex} (ID: {question.Id}): Matched answer by order - Answer QuestionId={studentAnswer.QuestionId}, AnswerText='{studentAnswer.AnswerText ?? "null"}'");
+                }
+            }
+            
+            var isCorrect = studentAnswer?.IsCorrect ?? false;
+            
+            // Debug logging
+            Console.WriteLine($"Question {questionIndex} (ID: {question.Id}): StudentAnswer={(studentAnswer != null ? "exists" : "null")}, AnswerText='{studentAnswer?.AnswerText ?? "null"}'");
+            
+            <div class="question-card">
+                <div class="question-header">
+                    <span class="question-number">Question @questionIndex</span>
+                    <span class="status-badge @(isCorrect ? "status-correct" : "status-incorrect")">
+                        @(isCorrect ? "✓ Correct" : "✗ Incorrect")
+                    </span>
+                </div>
+                
+                <div class="question-text">@question.QuestionText</div>
+                
+                <div class="answer-section student-answer">
+                    <div class="answer-label">Your Answer:</div>
+                    <div class="answer-text">
+                        @if (studentAnswer != null)
+                        {
+                            // If AnswerText is null or empty, but we have a StudentAnswer record, try to reconstruct it
+                            if (!string.IsNullOrEmpty(studentAnswer.AnswerText))
+                            {
+                                @if (question.Type == "Multiple Choice")
+                                {
+                                    var answerIndex = int.TryParse(studentAnswer.AnswerText, out int idx) ? idx : -1;
+                                    if (answerIndex >= 0 && answerIndex < question.Options.Count)
+                                    {
+                                        <text>@(char.ConvertFromUtf32(65 + answerIndex)): @question.Options[answerIndex]</text>
+                                    }
+                                    else
+                                    {
+                                        <text>@studentAnswer.AnswerText</text>
+                                    }
+                                }
+                                else
+                                {
+                                    <text>@studentAnswer.AnswerText</text>
+                                }
+                            }
+                            else
+                            {
+                                // AnswerText is null or empty, but we have a StudentAnswer record
+                                // This shouldn't happen, but if it does, show a message
+                                <span style="color: #999; font-style: italic;">Answer was provided but not saved correctly</span>
+                            }
+                        }
+                        else
+                        {
+                            <span style="color: #999; font-style: italic;">No answer provided</span>
+                        }
+                    </div>
+                </div>
+                
+                @if (!isCorrect)
+                {
+                    <div class="answer-section correct-answer" style="margin-top: 10px;">
+                        <div class="answer-label">Correct Answer:</div>
+                        <div class="answer-text">
+                            @if (question.Type == "Multiple Choice")
+                            {
+                                if (question.CorrectAnswerIndex >= 0 && question.CorrectAnswerIndex < question.Options.Count)
+                                {
+                                    <text>@(char.ConvertFromUtf32(65 + question.CorrectAnswerIndex)): @question.Options[question.CorrectAnswerIndex]</text>
+                                }
+                                else
+                                {
+                                    <text>Option @(question.CorrectAnswerIndex + 1)</text>
+                                }
+                            }
+                            else
+                            {
+                                <text>@question.CorrectAnswer</text>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (quiz != null && !quiz.IsPrivate)
+        {
+            <div class="leaderboard-section">
+                <h2 class="leaderboard-title">🏆 Leaderboard</h2>
+                @if (leaderboardEntries.Any())
+                {
+                    <div class="leaderboard-list">
+                        @for (int i = 0; i < leaderboardEntries.Count; i++)
+                        {
+                            var entry = leaderboardEntries[i];
+                            var rank = i + 1;
+                            var isCurrentUser = entry.StudentId == (UserSessionService.CurrentUserId ?? 0);
+                            <div class="leaderboard-item @(isCurrentUser ? "current-user" : "")">
+                                <div class="rank-badge rank-@(rank <= 3 ? rank : 0)">@rank</div>
+                                <div class="student-info">
+                                    <div class="student-name">
+                                        @entry.StudentName
+                                        @if (isCurrentUser)
+                                        {
+                                            <span class="you-badge">(You)</span>
+                                        }
+                                    </div>
+                                    <div class="student-score">@FormatScore(entry.Score)</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-leaderboard">
+                        <p>No other students have taken this quiz yet.</p>
+                    </div>
+                }
+            </div>
+        }
+
+        <div style="text-align: center;">
+            <button class="back-button" @onclick="GoBack">Go Back</button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int AttemptId { get; set; }
+    
+    private QuizAttempt? attempt;
+    private Quiz? quiz;
+    private bool loading = true;
+    private string? error;
+    private List<LeaderboardEntry> leaderboardEntries = new();
+
+    protected override void OnInitialized()
+    {
+        LoadResults();
+    }
+
+    private void LoadResults()
+    {
+        try
+        {
+            loading = true;
+            
+            // Get quiz ID from query string
+            var uri = new Uri(Navigation.Uri);
+            var queryString = uri.Query;
+            int quizId = 0;
+            
+            if (!string.IsNullOrEmpty(queryString))
+            {
+                var queryParams = queryString.TrimStart('?').Split('&');
+                foreach (var param in queryParams)
+                {
+                    var parts = param.Split('=');
+                    if (parts.Length == 2 && parts[0] == "quizId")
+                    {
+                        int.TryParse(parts[1], out quizId);
+                        break;
+                    }
+                }
+            }
+            
+            if (quizId == 0)
+            {
+                error = "Quiz ID not provided";
+                loading = false;
+                return;
+            }
+            
+            // Load quiz and attempt
+            var userRole = UserSessionService.CurrentUserRole;
+            var currentUserId = UserSessionService.CurrentUserId ?? 0;
+            
+            // If user is a student, ensure they can only view their own attempts
+            if (userRole == "Student")
+            {
+                attempt = QuizAttemptService.GetStudentQuizAttempt(quizId, currentUserId);
+            }
+            else
+            {
+                // Teachers can view any student's attempt
+                attempt = QuizAttemptService.GetQuizAttempt(AttemptId, quizId);
+            }
+            
+            quiz = QuizService.GetQuizByIdForStudent(quizId);
+            
+            if (attempt == null)
+            {
+                error = "Quiz attempt not found";
+            }
+            else if (quiz == null)
+            {
+                error = "Quiz not found";
+            }
+            else if (userRole == "Student" && attempt.StudentId != currentUserId)
+            {
+                // Double-check: students should never see other students' attempts
+                error = "You do not have permission to view this quiz attempt";
+                attempt = null;
+            }
+            else
+            {
+                // Debug logging
+                Console.WriteLine($"QuizResults: Loaded attempt {AttemptId} with {attempt.Answers?.Count ?? 0} answers");
+                if (attempt.Answers != null)
+                {
+                    foreach (var answer in attempt.Answers)
+                    {
+                        Console.WriteLine($"  Answer: QuestionId={answer.QuestionId}, AnswerText='{answer.AnswerText ?? "null"}', IsCorrect={answer.IsCorrect}");
+                    }
+                }
+                
+                // Load leaderboard if quiz is public
+                if (quiz != null && !quiz.IsPrivate)
+                {
+                    LoadLeaderboard(quizId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Error loading results: {ex.Message}";
+            Console.WriteLine($"Error loading quiz results: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private string FormatScore(double score)
+    {
+        return $"{score:F1}%";
+    }
+
+    private string FormatDate(DateTime date)
+    {
+        return date.ToString("MMM dd, yyyy HH:mm");
+    }
+
+    private void LoadLeaderboard(int quizId)
+    {
+        try
+        {
+            var attempts = QuizAttemptService.GetQuizAttempts(quizId);
+            leaderboardEntries = attempts
+                .OrderByDescending(a => a.Score)
+                .ThenByDescending(a => a.CorrectAnswers)
+                .ThenBy(a => a.SubmittedAt) // Earlier submission ranks higher if same score
+                .Select(a => new LeaderboardEntry
+                {
+                    StudentId = a.StudentId,
+                    StudentName = a.StudentName ?? "Unknown Student",
+                    Score = a.Score,
+                    CorrectAnswers = a.CorrectAnswers,
+                    TotalQuestions = a.TotalQuestions
+                })
+                .ToList();
+            
+            Console.WriteLine($"Leaderboard loaded: {leaderboardEntries.Count} entries for quiz {quizId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading leaderboard: {ex.Message}");
+            leaderboardEntries = new List<LeaderboardEntry>();
+        }
+    }
+
+    private void GoBack()
+    {
+        // Check if the current user is the student who took this quiz
+        var currentUserId = UserSessionService.CurrentUserId ?? 0;
+        var quizId = 0;
+        
+        // Get quiz ID from query string
+        try
+        {
+            var uri = new Uri(Navigation.Uri);
+            var queryString = uri.Query;
+            if (!string.IsNullOrEmpty(queryString))
+            {
+                var queryParams = queryString.TrimStart('?').Split('&');
+                foreach (var param in queryParams)
+                {
+                    var parts = param.Split('=');
+                    if (parts.Length == 2 && parts[0] == "quizId")
+                    {
+                        int.TryParse(parts[1], out quizId);
+                        break;
+                    }
+                }
+            }
+        }
+        catch { }
+        
+        // Check if the current user is the student who took this quiz attempt
+        // If the attempt exists and the current user is the student, go to quiz history
+        // Otherwise, if they're a teacher viewing someone else's attempt, go to quiz takers
+        if (attempt != null && attempt.StudentId == currentUserId)
+        {
+            // Current user is the student who took this quiz - go to quiz history
+            Navigation.NavigateTo("/view-quiz-history");
+        }
+        else if (quizId > 0)
+        {
+            // Teacher viewing a student's attempt - go to quiz takers page
+            Navigation.NavigateTo($"/quiz-takers/{quizId}");
+        }
+        else
+        {
+            // Fallback: check role
+            var userRole = UserSessionService.CurrentUserRole;
+            if (userRole == "Teacher" && quizId > 0)
+            {
+                Navigation.NavigateTo($"/quiz-takers/{quizId}");
+            }
+            else
+            {
+                Navigation.NavigateTo("/view-quiz-history");
+            }
+        }
+    }
+
+    private class LeaderboardEntry
+    {
+        public int StudentId { get; set; }
+        public string StudentName { get; set; } = "";
+        public double Score { get; set; }
+        public int CorrectAnswers { get; set; }
+        public int TotalQuestions { get; set; }
+    }
+}
+

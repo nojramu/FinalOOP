@@ -1,0 +1,823 @@
+@page "/studentdashboard"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@using System.Linq
+@inject NavigationManager Navigation
+@inject QuizService QuizService
+@inject QuizAttemptService QuizAttemptService
+@inject UserSessionService UserSessionService
+@inject SmartQuiz.Data.AppDbContext _context
+@rendermode InteractiveServer
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+/* NAVBAR */
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+    overflow: hidden;
+}
+
+.profile-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.nav-links a {
+    margin-left: 30px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+    display: inline-block;
+}
+
+.nav-links a:hover {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.nav-links a.active {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    font-weight: 600;
+}
+
+.logout {
+    color: #e74c3c !important;
+    font-weight: 600;
+}
+
+.logout:hover {
+    background: #e74c3c !important;
+    color: white !important;
+}
+
+/* MAIN LAYOUT */
+.main-content {
+    padding: 50px 40px;
+    min-height: calc(100vh - 90px);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Dashboard Layout */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255,255,255,0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #61c2a2, #48a583, #667eea);
+    border-radius: 20px 20px 0 0;
+}
+
+.card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.card h3::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 2px;
+}
+
+/* Quiz List Styles */
+.quiz-list-container {
+    margin-top: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.quiz-list-item {
+    padding: 15px;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, rgba(97, 194, 162, 0.1), rgba(72, 165, 131, 0.1));
+    border-radius: 12px;
+    border-left: 4px solid #61c2a2;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.quiz-list-item:hover {
+    background: linear-gradient(135deg, rgba(97, 194, 162, 0.2), rgba(72, 165, 131, 0.2));
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(97, 194, 162, 0.2);
+}
+
+.quiz-list-item h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.quiz-list-item p {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin: 0;
+}
+
+.quiz-list-item .quiz-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.quiz-status.available {
+    background: linear-gradient(135deg, #5cb85c, #449d44);
+    color: white;
+}
+
+.quiz-status.completed {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+}
+
+.empty-list {
+    text-align: center;
+    padding: 40px 20px;
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+/* Big Card - Overall Performance */
+.big-card {
+    grid-column: 1 / -1;
+    min-height: 400px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+    cursor: default;
+    height: 100%;
+}
+
+.big-card:hover {
+    transform: translateY(0) scale(1);
+}
+
+.big-card h3::before {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+/* Chart Placeholders */
+.chart-container {
+    margin-top: 20px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.chart-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(97, 194, 162, 0.1), rgba(72, 165, 131, 0.1));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #61c2a2;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+/* Bar Chart Visualization */
+.bar-chart {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: #2c3e50;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.legend-blue {
+    background: #3498db;
+}
+
+.legend-red {
+    background: #e74c3c;
+}
+
+.bar-item {
+    margin-bottom: 20px;
+}
+
+.bar-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.bar-container {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.bar {
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+}
+
+.bar:hover {
+    transform: scaleY(1.1);
+}
+
+.bar-correct {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+}
+
+.bar-incorrect {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.bar-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 0.75rem;
+    color: #7f8c8d;
+}
+
+/* Line Chart Visualization */
+.line-chart-container {
+    width: 100%;
+    height: 200px;
+    margin-top: 20px;
+    position: relative;
+}
+
+.line-chart-grid {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 1px;
+}
+
+.grid-line {
+    border-top: 1px solid #e0e0e0;
+}
+
+.chart-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+/* Donut Chart Visualization */
+.donut-chart-container {
+    width: 200px;
+    height: 200px;
+    margin: 20px auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.donut-chart {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(
+        #3498db 0deg 257deg,
+        #e74c3c 257deg 360deg
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.donut-inner {
+    width: 60%;
+    height: 60%;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.donut-percentage {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.donut-label {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.dashboard-header h1 {
+    font-weight: 800;
+    font-size: 3rem;
+    margin-bottom: 15px;
+    color: white;
+}
+
+.dashboard-header p {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    font-weight: 300;
+}
+
+/* Card Icons */
+.card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    opacity: 0.8;
+}
+
+.average-scores::before { content: "📊"; }
+.completion::before { content: "✅"; }
+.performance::before { content: "📈"; }
+.quiz-list::before { content: "📝"; }
+
+/* Responsive Design */
+@@media (max-width: 768px) {
+    .main-content {
+        padding: 30px 20px;
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .navbar {
+        padding: 10px 20px;
+    }
+    
+    .nav-links a {
+        margin-left: 15px;
+        padding: 6px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 2.2rem;
+    }
+}
+
+/* Animation */
+@@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.card:nth-child(1) { animation-delay: 0.1s; }
+.card:nth-child(2) { animation-delay: 0.2s; }
+.card:nth-child(3) { animation-delay: 0.3s; }
+.card:nth-child(4) { animation-delay: 0.4s; }
+</style>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-left">
+        @if (!string.IsNullOrWhiteSpace(currentUserPhoto))
+        {
+            <img src="@currentUserPhoto" alt="avatar" class="profile-photo" />
+        }
+        else
+        {
+            <div class="profile-icon">👤</div>
+        }
+        <a href="/profile" style="color: #2c3e50; font-weight: 600; font-size: 1.1rem; text-decoration: none;">Profile</a>
+    </div>
+
+    <div class="nav-links">
+        <NavLink href="/studentdashboard" Match="NavLinkMatch.All">Dashboard</NavLink>
+        <NavLink href="/notifications">Notifications</NavLink>
+        <NavLink href="/view-quiz-history">View Quiz History</NavLink>
+        <NavLink href="/take-quiz">Take Quiz</NavLink>
+        <a href="/" class="logout">Log out</a>
+    </div>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div class="main-content">
+    <div class="dashboard-header">
+        <h1>Dashboard</h1>
+        <p>Monitor your quiz progress and performance.</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- AVERAGE SCORES -->
+        <div class="card average-scores" @onclick="@(() => Navigation.NavigateTo("/view-quiz-history"))">
+            <div class="card-icon"></div>
+            <h3>Average Scores</h3>
+            @if (recentAttempts.Any())
+            {
+                <div class="line-chart-container">
+                    <div class="line-chart-grid">
+                        <div class="grid-line"></div>
+                        <div class="grid-line"></div>
+                        <div class="grid-line"></div>
+                        <div class="grid-line"></div>
+                    </div>
+                    <!-- Dynamic line chart based on actual scores -->
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="position: absolute; top: 0; left: 0;">
+                        @{
+                            var points = GetLineChartPoints(recentAttempts);
+                        }
+                        <polyline points="@points" 
+                                  fill="none" stroke="#3498db" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        @for (int i = 0; i < recentAttempts.Count && i < 5; i++)
+                        {
+                            var x = 10 + (i * 15);
+                            var score = recentAttempts[i].Score;
+                            var y = 90 - (score * 0.6); // Scale score to chart height
+                            <circle cx="@x" cy="@y" r="2" fill="#3498db"/>
+                        }
+                    </svg>
+                    <div class="chart-axis">
+                        @for (int i = 0; i < recentAttempts.Count && i < 5; i++)
+                        {
+                            <span>@(GetQuizTitle(recentAttempts[i].QuizId))</span>
+                        }
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 10px; font-size: 0.9rem; color: #2c3e50; font-weight: 600;">
+                    Average: @(averageScore.ToString("F1"))%
+                </div>
+            }
+            else
+            {
+                <div class="empty-list">
+                    <p>No quiz attempts yet. Take your first quiz to see your scores!</p>
+                </div>
+            }
+        </div>
+
+        <!-- QUIZ COMPLETION -->
+        <div class="card completion" @onclick="@(() => Navigation.NavigateTo("/view-quiz-history"))">
+            <div class="card-icon"></div>
+            <h3>Quiz Completion</h3>
+            @if (totalAvailableQuizzes > 0)
+            {
+                <div class="donut-chart-container">
+                    @{
+                        var completionDeg = completionPercentage * 3.6;
+                    }
+                    <div class="donut-chart" style="background: conic-gradient(
+                        #3498db 0deg @(completionDeg.ToString("F1"))deg,
+                        #e74c3c @(completionDeg.ToString("F1"))deg 360deg
+                    );">
+                        <div class="donut-inner">
+                            <div class="donut-percentage">@(completionPercentage.ToString("F1"))%</div>
+                            <div class="donut-label">Completed</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 20px; font-size: 0.9rem; color: #7f8c8d;">
+                    <span style="color: #3498db;">●</span> Completed: @completedQuizzesCount<br>
+                    <span style="color: #e74c3c;">●</span> Available: @(totalAvailableQuizzes - completedQuizzesCount)
+                </div>
+            }
+            else
+            {
+                <div class="empty-list">
+                    <p>No quizzes available yet.</p>
+                </div>
+            }
+        </div>
+
+        <!-- QUIZ LIST -->
+        <div class="card quiz-list" @onclick="@(() => Navigation.NavigateTo("/take-quiz"))">
+            <div class="card-icon"></div>
+            <h3>Available QuizBattles</h3>
+            <div class="quiz-list-container">
+                @if (availableQuizzes.Any())
+                {
+                    @foreach (var quiz in availableQuizzes.Take(5))
+                    {
+                        var hasTaken = QuizAttemptService.HasStudentTakenQuiz(quiz.Id, currentStudentId);
+                        <div class="quiz-list-item" @onclick:stopPropagation="true" @onclick="@(() => Navigation.NavigateTo("/take-quiz"))">
+                            <h5>@quiz.Title</h5>
+                            <p>@(string.IsNullOrEmpty(quiz.Description) ? "No description" : quiz.Description)</p>
+                            <span class="quiz-status @(hasTaken ? "completed" : "available")">@(hasTaken ? "Completed" : "Available")</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="empty-list">
+                        <p>No quizzes available at the moment.</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- OVERALL QUIZ PERFORMANCE -->
+        <div class="card big-card performance">
+            <div class="card-icon"></div>
+            <h3>Overall Quiz Performance</h3>
+            @if (performanceData.Any())
+            {
+                <div class="bar-chart">
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <div class="legend-color legend-blue"></div>
+                            <span>Correct Answers</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color legend-red"></div>
+                            <span>Incorrect Answers</span>
+                        </div>
+                    </div>
+                    
+                    @foreach (var perf in performanceData.Take(5))
+                    {
+                        var maxValue = Math.Max(perf.Correct, perf.Incorrect);
+                        var maxWidth = maxValue > 0 ? 100 : 0;
+                        var correctWidth = maxValue > 0 ? (perf.Correct * 100.0 / maxValue) : 0;
+                        var incorrectWidth = maxValue > 0 ? (perf.Incorrect * 100.0 / maxValue) : 0;
+                        
+                        <div class="bar-item">
+                            <div class="bar-label">@perf.QuizTitle</div>
+                            <div class="bar-container">
+                                <div class="bar bar-correct" style="width: @(correctWidth)%;">@perf.Correct</div>
+                                <div class="bar bar-incorrect" style="width: @(incorrectWidth)%;">@perf.Incorrect</div>
+                            </div>
+                        </div>
+                    }
+                    
+                    @{
+                        var maxBarValue = performanceData.Any() ? performanceData.Max(p => Math.Max(p.Correct, p.Incorrect)) : 10;
+                        var scaleStep = maxBarValue > 0 ? Math.Ceiling(maxBarValue / 4.0) : 5;
+                    }
+                    <div class="bar-scale">
+                        <span>0</span>
+                        <span>@(scaleStep)</span>
+                        <span>@(scaleStep * 2)</span>
+                        <span>@(scaleStep * 3)</span>
+                        <span>@(scaleStep * 4)</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="empty-list">
+                    <p>No quiz performance data yet. Complete some quizzes to see your performance!</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Quiz> availableQuizzes = new();
+    private List<QuizAttempt> quizAttempts = new();
+    private List<QuizAttempt> recentAttempts = new();
+    private List<PerformanceData> performanceData = new();
+    private int currentStudentId = 0;
+    private double averageScore = 0;
+    private int completedQuizzesCount = 0;
+    private int totalAvailableQuizzes = 0;
+    private double completionPercentage = 0;
+    private string currentUserPhoto = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            currentStudentId = UserSessionService.CurrentUserId ?? 0;
+            
+            if (currentStudentId > 0)
+            {
+                // Load current user's photo if any
+                try
+                {
+                    var user = await _context.Users.FindAsync(currentStudentId);
+                    currentUserPhoto = user?.PhotoPath ?? string.Empty;
+                }
+                catch { }
+                // Load available quizzes
+                availableQuizzes = QuizService.GetAllPublishedQuizzesForStudents();
+                totalAvailableQuizzes = availableQuizzes.Count;
+                
+                // Load student's quiz attempts
+                quizAttempts = QuizAttemptService.GetStudentQuizAttempts(currentStudentId);
+                
+                // Get unique quiz IDs that the student has taken
+                var takenQuizIds = quizAttempts.Select(a => a.QuizId).Distinct().ToList();
+                completedQuizzesCount = takenQuizIds.Count;
+                
+                // Calculate completion percentage
+                if (totalAvailableQuizzes > 0)
+                {
+                    completionPercentage = (completedQuizzesCount * 100.0) / totalAvailableQuizzes;
+                }
+                
+                // Get recent attempts (last 5, ordered by most recent)
+                recentAttempts = quizAttempts
+                    .OrderByDescending(a => a.SubmittedAt)
+                    .Take(5)
+                    .ToList();
+                
+                // Calculate average score
+                if (quizAttempts.Any())
+                {
+                    averageScore = quizAttempts.Average(a => a.Score);
+                }
+                
+                // Build performance data for bar chart
+                performanceData = new List<PerformanceData>();
+                foreach (var attempt in quizAttempts.OrderByDescending(a => a.SubmittedAt).Take(5))
+                {
+                    var quiz = QuizService.GetQuizByIdForStudent(attempt.QuizId);
+                    if (quiz != null)
+                    {
+                        performanceData.Add(new PerformanceData
+                        {
+                            QuizTitle = quiz.Title ?? "Unknown Quiz",
+                            Correct = attempt.CorrectAnswers,
+                            Incorrect = attempt.TotalQuestions - attempt.CorrectAnswers
+                        });
+                    }
+                }
+                
+                Console.WriteLine($"Dashboard loaded: StudentId={currentStudentId}, {quizAttempts.Count} attempts, {availableQuizzes.Count} available quizzes, Average: {averageScore:F1}%");
+                Console.WriteLine($"Available quizzes details:");
+                foreach (var quiz in availableQuizzes)
+                {
+                    Console.WriteLine($"  - Quiz ID: {quiz.Id}, Title: {quiz.Title}, IsPublished: {quiz.IsPublished}, IsPrivate: {quiz.IsPrivate}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+    }
+
+    private string GetLineChartPoints(List<QuizAttempt> attempts)
+    {
+        if (!attempts.Any()) return "";
+        
+        var points = new List<string>();
+        var maxAttempts = Math.Min(attempts.Count, 5);
+        
+        for (int i = 0; i < maxAttempts; i++)
+        {
+            var x = 10 + (i * 15);
+            var score = attempts[i].Score;
+            var y = 90 - (score * 0.6); // Scale score (0-100) to chart height (0-90)
+            // Use numeric values instead of percentages for SVG polyline
+            points.Add($"{x},{y}");
+        }
+        
+        return string.Join(" ", points);
+    }
+
+    private string GetQuizTitle(int quizId)
+    {
+        var quiz = QuizService.GetQuizByIdForStudent(quizId);
+        if (quiz != null && !string.IsNullOrEmpty(quiz.Title))
+        {
+            // Truncate long titles
+            return quiz.Title.Length > 10 ? quiz.Title.Substring(0, 10) + "..." : quiz.Title;
+        }
+        return $"Quiz {quizId}";
+    }
+
+    private class PerformanceData
+    {
+        public string QuizTitle { get; set; } = "";
+        public int Correct { get; set; }
+        public int Incorrect { get; set; }
+    }
+}
+

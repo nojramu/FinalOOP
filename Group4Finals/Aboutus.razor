@@ -1,0 +1,535 @@
+@page "/about"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@inject NavigationManager Navigation
+@inject UserSessionService UserSessionService
+@inject SmartQuiz.Data.AppDbContext _context
+@rendermode InteractiveServer
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background-color: #f7fafa;
+    color: #333;
+}
+
+/* HEADER */
+.header {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-square {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: #61c2a2;
+}
+
+.logo-text {
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+/* MAIN LAYOUT */
+.main-layout {
+    display: flex;
+    min-height: calc(100vh - 80px);
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 250px;
+    background: white;
+    padding: 30px 0;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-item {
+    margin: 0;
+    padding: 0;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 15px 30px;
+    color: #61c2a2;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    cursor: pointer;
+}
+
+.sidebar-link:hover {
+    background: rgba(97, 194, 162, 0.1);
+}
+
+.sidebar-link.active {
+    background: #61c2a2;
+    color: white;
+}
+
+.sidebar-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #48a583;
+}
+
+.sidebar-link-icon {
+    margin-right: 12px;
+    font-size: 1.1rem;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 10px 30px;
+}
+
+.sidebar-footer {
+    padding: 20px 30px;
+    font-size: 0.75rem;
+    color: #999;
+    text-align: center;
+}
+
+.main-content {
+    flex: 1;
+    padding: 40px;
+    background: #f5f5f5;
+}
+
+/* NAVIGATION BAR (for non-logged in) */
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 60px;
+    background: linear-gradient(90deg, #61c2a2, #61c2a2);
+    color: white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+nav .logo img {
+    width: 180px;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+nav .logo img:hover {
+    transform: scale(1.05);
+}
+nav a {
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 30px;
+    transition: color 0.3s ease;
+}
+nav a:hover {
+    color: #e3fbee;
+    text-decoration: underline;
+}
+/* MAIN CONTAINER */
+.about-container {
+    max-width: 1100px;
+    margin: 60px auto;
+    background-color: #ffffff;
+    padding: 60px;
+    border-radius: 20px;
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.08);
+}
+/* HEADINGS */
+.about-container h1 {
+    font-size: 3rem;
+    color: #61c2a2;
+    text-align: center;
+    margin-bottom: 40px;
+    letter-spacing: 1px;
+}
+.about-container h2 {
+    font-size: 1.9rem;
+    color: #4daf8f;
+    margin-top: 50px;
+    margin-bottom: 20px;
+    border-left: 5px solid #61c2a2;
+    padding-left: 10px;
+}
+/* PARAGRAPHS */
+.about-container p {
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: #555;
+    text-align: justify;
+}
+/* HIGHLIGHT BOX */
+.highlight-box {
+    background-color: #e9f8f3;
+    border-left: 6px solid #4daf8f;
+    padding: 25px 30px;
+    border-radius: 12px;
+    margin: 30px 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.highlight-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+}
+/* LIST STYLING */
+ul {
+    list-style-type: disc;
+    margin-left: 30px;
+    color: #444;
+}
+ul li {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+/* TEAM SECTION */
+.team-section {
+    margin-top: 60px;
+    text-align: center;
+}
+.team-section h2 {
+    font-size: 2rem;
+    color: #2e7d6b;
+    margin-bottom: 40px;
+}
+.team-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 40px;
+}
+.team-member {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 20px;
+    width: 220px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.team-member:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+.team-member img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid #61c2a2;
+    margin-bottom: 15px;
+}
+.team-member h3 {
+    font-size: 1.1rem;
+    color: #333;
+    margin-bottom: 5px;
+}
+.team-member p {
+    font-size: 0.9rem;
+    color: #666;
+}
+/* FOOTER */
+.footer {
+    text-align: center;
+    padding: 30px 0;
+    background-color: #61c2a2;
+    color: white;
+    margin-top: 70px;
+    font-size: 0.95rem;
+}
+</style>
+
+@if (isLoggedIn)
+{
+    <!-- HEADER -->
+    <div class="header">
+        <div class="logo-container">
+            <div class="logo-square">S</div>
+            <div class="logo-text">smartquiz account</div>
+        </div>
+    </div>
+
+    <!-- MAIN LAYOUT WITH SIDEBAR -->
+    <div class="main-layout">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <ul class="sidebar-nav">
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="/profile">
+                        <span class="sidebar-link-icon">👤</span>
+                        Profile
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="@GetQuizHistoryLink()">
+                        <span class="sidebar-link-icon">📚</span>
+                        Quiz History
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="/settings">
+                        <span class="sidebar-link-icon">⚙️</span>
+                        Settings
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <div class="sidebar-divider"></div>
+                </li>
+                <li class="sidebar-item">
+                    <a class="sidebar-link active" href="/about">
+                        <span class="sidebar-link-icon">ℹ️</span>
+                        About
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="/" style="color: #e74c3c;">
+                        <span class="sidebar-link-icon">🚪</span>
+                        Log Out
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                All Rights Reserved. YEYEYE.
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <div class="about-container">
+                <h1>About SmartQuiz</h1>
+                <div class="highlight-box">
+                    <p>
+                        We're a student-friendly platform made to make learning more fun and interactive. 
+                        We're here to make learning feel like a game. SmartQuiz is an interactive platform where students can 
+                        test their knowledge, challenge their friends in quiz battles, and climb up the leaderboards! 
+                        Teachers can create and share quizzes easily, while students learn in a fun and competitive way.
+                    </p>
+                    <p>
+                        Our goal is to make studying more exciting, engaging, and rewarding. With SmartQuiz, 
+                        learning isn't just about grades — it's about growth, teamwork, and friendly competition.
+                    </p>
+                </div>
+                <h2>Our Story</h2>
+                <p>
+                    What if learning could feel as enjoyable as playing a game? We noticed that students often 
+                    struggle to stay focused when overwhelmed with lessons, while teachers find it challenging 
+                    to measure progress effectively. With SmartQuiz, we aim to bring back the joy of learning through 
+                    engaging and interactive quizzes that promote collaboration and growth.
+                </p>
+                <h2>What to Experience</h2>
+                <p><strong>SmartQuiz Learning Features:</strong></p>
+                <ul>
+                    <li><strong>Engaging Quizzes:</strong> Students can test their understanding, compete with peers, and enjoy exciting quiz battles.</li>
+                    <li><strong>Leaderboard & Incentives:</strong> Earn badges, gain points, and rise on the leaderboard through friendly competition.</li>
+                    <li><strong>Teacher-Friendly Tools:</strong> Teachers can create, manage, and track quizzes efficiently while keeping lessons dynamic.</li>
+                </ul>
+                <h2>Our Goal</h2>
+                <p>
+                    We want learning to be more meaningful and enjoyable for everyone. 
+                    Instead of focusing only on grades, SmartQuiz encourages collaboration, curiosity, and improvement.
+                </p>
+                <h2>With SmartQuiz, We Encourage:</h2>
+                <ul>
+                    <li><strong>Creative and Exciting Topics:</strong> Turn lessons into interactive tests that make learning approachable.</li>
+                    <li><strong>Learning at Your Own Pace:</strong> Practice anytime, as much as you want, and improve at your own speed.</li>
+                    <li><strong>Fun Challenges and Collaboration:</strong> Compete with friends, join quiz battles, and share knowledge together.</li>
+                </ul>
+                <h2>Why Choose SmartQuiz?</h2>
+                <p>
+                    SmartQuiz makes learning more interesting, easy, and social. 
+                    Whether you're a student looking for a better way to study or a teacher wanting to bring 
+                    energy to your lessons, SmartQuiz is your go-to study partner.
+                </p>
+                <!-- TEAM SECTION -->
+                <div class="team-section">
+                    <h2>Meet Our Team</h2>
+                    <div class="team-grid">
+                        <div class="team-member">
+                            <img src="images/member1.jpg" alt="Member 1">
+                            <h3>Gwen Lopez</h3>
+                        </div>
+                        <div class="team-member">
+                            <img src="images/member2.jpg" alt="Member 2">
+                            <h3>Karl Basconcillo</h3>
+                        </div>
+                        <div class="team-member">
+                            <img src="images/member3.jpg" alt="Member 3">
+                            <h3>Ashlie Ballera</h3>
+                        </div>
+                        <div class="team-member">
+                            <img src="images/member4.jpg" alt="Member 4">
+                            <h3>Mark Alaba</h3>
+                        </div>
+                        <div class="team-member">
+                            <img src="images/member7.jpg" alt="Member 7">
+                            <h3>Matthew Nunez</h3>
+                        </div>
+                        <div class="team-member">
+                            <img src="images/member6.jpg" alt="Member 6">
+                            <h3>Arabela Dela Cruz</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- NAVIGATION BAR (for non-logged in users) -->
+    <nav>
+        <div class="logo" @onclick="GoToHome">
+            <img src="images/smartquiz-logo.png" alt="SmartQuiz Logo" />
+        </div>
+        <div>
+            <a href="/">Home</a>
+            <a href="/about">About Us</a>
+        </div>
+    </nav>
+    <!-- MAIN CONTENT -->
+    <div class="about-container">
+        <h1>About SmartQuiz</h1>
+        <div class="highlight-box">
+            <p>
+                We're a student-friendly platform made to make learning more fun and interactive. 
+                We're here to make learning feel like a game. SmartQuiz is an interactive platform where students can 
+                test their knowledge, challenge their friends in quiz battles, and climb up the leaderboards! 
+                Teachers can create and share quizzes easily, while students learn in a fun and competitive way.
+            </p>
+            <p>
+                Our goal is to make studying more exciting, engaging, and rewarding. With SmartQuiz, 
+                learning isn't just about grades — it's about growth, teamwork, and friendly competition.
+            </p>
+        </div>
+        <h2>Our Story</h2>
+        <p>
+            What if learning could feel as enjoyable as playing a game? We noticed that students often 
+            struggle to stay focused when overwhelmed with lessons, while teachers find it challenging 
+            to measure progress effectively. With SmartQuiz, we aim to bring back the joy of learning through 
+            engaging and interactive quizzes that promote collaboration and growth.
+        </p>
+        <h2>What to Experience</h2>
+        <p><strong>SmartQuiz Learning Features:</strong></p>
+        <ul>
+            <li><strong>Engaging Quizzes:</strong> Students can test their understanding, compete with peers, and enjoy exciting quiz battles.</li>
+            <li><strong>Leaderboard & Incentives:</strong> Earn badges, gain points, and rise on the leaderboard through friendly competition.</li>
+            <li><strong>Teacher-Friendly Tools:</strong> Teachers can create, manage, and track quizzes efficiently while keeping lessons dynamic.</li>
+        </ul>
+        <h2>Our Goal</h2>
+        <p>
+            We want learning to be more meaningful and enjoyable for everyone. 
+            Instead of focusing only on grades, SmartQuiz encourages collaboration, curiosity, and improvement.
+        </p>
+        <h2>With SmartQuiz, We Encourage:</h2>
+        <ul>
+            <li><strong>Creative and Exciting Topics:</strong> Turn lessons into interactive tests that make learning approachable.</li>
+            <li><strong>Learning at Your Own Pace:</strong> Practice anytime, as much as you want, and improve at your own speed.</li>
+            <li><strong>Fun Challenges and Collaboration:</strong> Compete with friends, join quiz battles, and share knowledge together.</li>
+        </ul>
+        <h2>Why Choose SmartQuiz?</h2>
+        <p>
+            SmartQuiz makes learning more interesting, easy, and social. 
+            Whether you're a student looking for a better way to study or a teacher wanting to bring 
+            energy to your lessons, SmartQuiz is your go-to study partner.
+        </p>
+        <!-- TEAM SECTION -->
+        <div class="team-section">
+            <h2>Meet Our Team</h2>
+            <div class="team-grid">
+                <div class="team-member">
+                    <img src="images/member1.jpg" alt="Member 1">
+                    <h3>Gwen Lopez</h3>
+                </div>
+                <div class="team-member">
+                    <img src="images/member2.jpg" alt="Member 2">
+                    <h3>Karl Basconcillo</h3>
+                </div>
+                <div class="team-member">
+                    <img src="images/member3.jpg" alt="Member 3">
+                    <h3>Ashlie Ballera</h3>
+                </div>
+                <div class="team-member">
+                    <img src="images/member4.jpg" alt="Member 4">
+                    <h3>Mark Alaba</h3>
+                </div>
+                <div class="team-member">
+                    <img src="images/member7.jpg" alt="Member 5">
+                    <h3>Matthew Nunez</h3>
+                </div>
+                <div class="team-member">
+                    <img src="images/member6.jpg" alt="Member 6">
+                    <h3>Arabela Dela Cruz</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- FOOTER -->
+    <div class="footer">
+        © 2025 SmartQuiz | Making learning fun and interactive for everyone.
+    </div>
+}
+
+@code {
+    private bool isLoggedIn = false;
+    private User? currentUser = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = UserSessionService.CurrentUserId;
+        isLoggedIn = userId.HasValue && userId.Value > 0;
+        
+        if (isLoggedIn && userId.HasValue)
+        {
+            try
+            {
+                currentUser = await _context.Users.FindAsync(userId.Value);
+            }
+            catch
+            {
+                // Ignore errors
+            }
+        }
+    }
+
+    private string GetQuizHistoryLink()
+    {
+        if (currentUser == null) return "/view-quiz-history";
+        return currentUser.Role == "Teacher" ? "/view-quizzes" : "/view-quiz-history";
+    }
+
+    private void GoToHome() => Navigation.NavigateTo("/", true);
+}

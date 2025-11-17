@@ -1,0 +1,370 @@
+@page "/view-quiz-history"
+@page "/quiz-history"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@inject NavigationManager Navigation
+@inject QuizAttemptService QuizAttemptService
+@inject UserSessionService UserSessionService
+@inject QuizService QuizService
+@inject SmartQuiz.Data.AppDbContext _context
+@rendermode InteractiveServer
+
+<PageTitle>View Quiz History</PageTitle>
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+/* NAVBAR */
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+    overflow: hidden;
+}
+
+.profile-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.nav-links a {
+    margin-left: 30px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+    display: inline-block;
+}
+
+.nav-links a:hover {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.nav-links a.active {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    font-weight: 600;
+}
+
+.logout {
+    color: #e74c3c !important;
+    font-weight: 600;
+}
+
+.logout:hover {
+    background: #e74c3c !important;
+    color: white !important;
+}
+
+/* MAIN CONTENT */
+.view-quizzes-container {
+    padding: 50px 40px;
+    min-height: calc(100vh - 90px);
+}
+
+.view-quizzes-container h3 {
+    margin-bottom: 30px;
+    font-weight: 700;
+    font-size: 2rem;
+    color: white;
+}
+
+/* QUIZ GRID */
+.quiz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+/* QUIZ CARD */
+.quiz-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.2);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 180px;
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.quiz-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #61c2a2, #48a583, #667eea);
+    border-radius: 20px 20px 0 0;
+}
+
+.quiz-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.quiz-card h5 {
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quiz-card h5::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 2px;
+}
+
+.quiz-card p {
+    color: #7f8c8d;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 15px;
+}
+
+/* QUIZ FOOTER */
+.quiz-footer {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* BUTTON */
+.quiz-footer button {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.quiz-footer button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(97, 194, 162, 0.4);
+}
+
+/* Responsive Design */
+@@media (max-width: 768px) {
+    .view-quizzes-container {
+        padding: 30px 20px;
+    }
+    
+    .navbar {
+        padding: 10px 20px;
+    }
+    
+    .nav-links a {
+        margin-left: 15px;
+        padding: 6px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .quiz-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .view-quizzes-container h3 {
+        font-size: 1.5rem;
+    }
+}
+
+/* Animation */
+@@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.quiz-card:nth-child(1) { animation-delay: 0.1s; }
+.quiz-card:nth-child(2) { animation-delay: 0.2s; }
+.quiz-card:nth-child(3) { animation-delay: 0.3s; }
+.quiz-card:nth-child(4) { animation-delay: 0.4s; }
+.quiz-card:nth-child(5) { animation-delay: 0.5s; }
+.quiz-card:nth-child(6) { animation-delay: 0.6s; }
+</style>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-left">
+        @if (!string.IsNullOrWhiteSpace(currentUserPhoto))
+        {
+            <img src="@currentUserPhoto" alt="avatar" class="profile-photo" />
+        }
+        else
+        {
+            <div class="profile-icon">👤</div>
+        }
+        <a href="/profile" style="color: #2c3e50; font-weight: 600; font-size: 1.1rem; text-decoration: none;">Profile</a>
+    </div>
+    <div class="nav-links">
+        <NavLink href="/studentdashboard" Match="NavLinkMatch.All">Dashboard</NavLink>
+        <NavLink href="/notifications">Notifications</NavLink>
+        <NavLink href="/view-quiz-history">View Quiz History</NavLink>
+        <NavLink href="/take-quiz">Take Quiz</NavLink>
+        <a href="/" class="logout">Log out</a>
+    </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="view-quizzes-container">
+    <h3>Quizzes taken:</h3>
+
+    @if (quizAttempts.Count == 0)
+    {
+        <p style="color: rgba(255,255,255,0.9); font-size: 1.1rem;">No quizzes taken yet.</p>
+    }
+    else
+    {
+        <div class="quiz-grid">
+            @foreach (var attempt in quizAttempts)
+            {
+                var quizTitle = GetQuizTitle(attempt.QuizId);
+                <div class="quiz-card">
+                    <div>
+                        <h5>@(quizTitle ?? $"Quiz #{attempt.QuizId}")</h5>
+                        <p>Submitted on @FormatDate(attempt.SubmittedAt)</p>
+                    </div>
+                    <div class="quiz-footer">
+                        <span><b>Final score:</b> @FormatScore(attempt.Score) (@attempt.CorrectAnswers/@attempt.TotalQuestions correct)</span>
+                        <button @onclick="() => ViewResults(attempt.Id, attempt.QuizId)">View Results</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<QuizAttempt> quizAttempts = new();
+    private string currentUserPhoto = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var studentId = UserSessionService.CurrentUserId ?? 0;
+            if (studentId > 0)
+            {
+                quizAttempts = QuizAttemptService.GetStudentQuizAttempts(studentId);
+                Console.WriteLine($"Loaded {quizAttempts.Count} quiz attempts for student {studentId}");
+            }
+            else
+            {
+                Console.WriteLine("Student not logged in, cannot load quiz history");
+            }
+            try
+            {
+                var userId = UserSessionService.CurrentUserId ?? 0;
+                if (userId > 0)
+                {
+                    var user = _context.Users.FirstOrDefault(u => u.Id == userId);
+                    currentUserPhoto = user?.PhotoPath ?? string.Empty;
+                }
+            }
+            catch {}
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading quiz history: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            quizAttempts = new List<QuizAttempt>();
+        }
+    }
+
+    private void ViewResults(int attemptId, int quizId)
+    {
+        Navigation.NavigateTo($"/quiz-results/{attemptId}?quizId={quizId}");
+    }
+
+    private string FormatScore(double score)
+    {
+        return $"{score:F1}%";
+    }
+
+    private string FormatDate(DateTime date)
+    {
+        return date.ToString("MMM dd, yyyy HH:mm");
+    }
+
+    private string? GetQuizTitle(int quizId)
+    {
+        try
+        {
+            var quiz = QuizService.GetQuizByIdForStudent(quizId);
+            return quiz?.Title;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}
+

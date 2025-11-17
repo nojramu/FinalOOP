@@ -1,0 +1,409 @@
+@page "/logint"
+@using SmartQuiz.Services
+@inject NavigationManager Navigation
+@inject SmartQuiz.Data.AppDbContext _context
+@inject UserSessionService UserSessionService
+@using SmartQuiz.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+}
+.container {
+    display: flex;
+    height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    background-color: #f9f9f9;
+}
+
+/* LEFT SIDE (green background) */
+.left-panel {
+    flex: 1;
+    background-color: #61c2a2;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 24px;
+    height: 100vh;
+}
+
+.logo {
+    margin-left: 8px;
+    cursor: pointer;
+}
+
+.logo img {
+    width: 300px;
+    height: auto;
+}
+
+.illustration {
+    margin-top: 70px;
+    display: flex;
+    justify-content: center;
+    width: 95%;
+}
+
+.illustration img {
+    width: 100%;
+    max-width: 800px;
+    height: auto;
+}
+
+/* RIGHT SIDE (login form) */
+.right-panel {
+    flex: 1;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
+}
+
+nav {
+    position: absolute;
+    top: 20px;
+    right: 40px;
+}
+
+nav a {
+    margin-left: 20px;
+    text-decoration: none;
+    font-weight: bold;
+    color: black;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+.login-box {
+    width: 70%;
+    max-width: 350px;
+    text-align: center;
+}
+
+.login-box h1 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    color: #000;
+}
+
+.login-box label {
+    display: block;
+    text-align: left;
+    margin: 8px 0 5px;
+    font-weight: 500;
+}
+
+.input-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.login-box input {
+    width: 100%;
+    padding: 8px 36px 8px 8px;
+    border: none;
+    border-bottom: 2px solid #000;
+    outline: none;
+    font-size: 1rem;
+    background-color: transparent;
+}
+
+.login-box input::placeholder {
+    color: #777;
+    font-style: italic;
+}
+
+/* Toggle password visibility button */
+.toggle-password-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 0.9rem;
+    color: #4daf8f;
+}
+
+.toggle-password-btn:hover {
+    text-decoration: underline;
+}
+
+/* Buttons */
+.login-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background-color: #4daf8f;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.login-btn:hover {
+    opacity: 0.9;
+}
+
+/* Forgot password link */
+.forgot-password {
+    margin-top: 10px;
+    display: block;
+    text-align: right;
+    font-size: 0.9rem;
+    color: #4daf8f;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+/* Space and style for "Don't have an account" */
+.signup-section {
+    margin-top: 25px;
+}
+
+.signup-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 20px;
+    background-color: black;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.signup-btn:hover {
+    background-color: #333;
+}
+
+/* Error message styling */
+.error-message {
+    color: red;
+    font-size: 0.9rem;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.success-message {
+    color: green;
+    font-size: 0.9rem;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.footer {
+    text-align: center;
+    padding: 30px 0;
+    background-color: #61c2a2;
+    color: white;
+    margin-top: 50px;
+    font-size: 0.95rem;
+}
+
+</style>
+
+<div class="container">
+    <!-- LEFT SIDE -->
+    <div class="left-panel">
+        <div class="logo" @onclick="GoToHome">
+            <img src="images/smartquiz-logo.png" alt="SmartQuiz Logo" />
+        </div>
+        <div class="illustration">
+            <img src="images/professor.png" alt="Teacher Illustration" />
+        </div>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right-panel">
+        <nav>
+            <a href="/">Home</a>
+            <a href="/about">About us</a>
+        </nav>
+
+        <div class="login-box">
+            <h1>Hello, Teacher!</h1>
+
+            <label>Username or Email</label>
+            <div class="input-wrapper">
+                <input type="text" placeholder="Enter Username or Email" @bind="usernameOrEmail" />
+            </div>
+
+            <label>Password</label>
+            <div class="input-wrapper">
+                <input type="@PasswordInputType" placeholder="Enter Password" @bind="password" />
+                <button type="button" class="toggle-password-btn" @onclick="TogglePasswordVisibility">
+                    @(showPassword ? "Hide" : "Show")
+                </button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="error-message">@errorMessage</div>
+            }
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="success-message">@successMessage</div>
+            }
+
+            <button class="login-btn" @onclick="HandleLogin">Log In</button>
+
+            <a class="forgot-password" @onclick="GoToForgotPassword">Forgot Password?</a>
+
+            <div class="signup-section">
+                <p></p>
+                <p>Don't have an account?</p>
+                <button class="signup-btn" @onclick="GoToSignup">Sign Up</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    © 2025 SmartQuiz | Making learning fun and interactive for everyone.
+</div>
+
+
+@code {
+    private string usernameOrEmail = string.Empty;
+    private string password = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    private bool showPassword = false;
+    private string PasswordInputType => showPassword ? "text" : "password";
+
+    private void TogglePasswordVisibility() => showPassword = !showPassword;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Ensure database and Users table exist
+        try
+        {
+            _context.Database.EnsureCreated();
+            
+            // Verify Users table exists, create if not
+            var connection = _context.Database.GetDbConnection();
+            var wasOpen = connection.State == System.Data.ConnectionState.Open;
+            
+            if (!wasOpen)
+            {
+                connection.Open();
+            }
+
+            try
+            {
+                using var checkCommand = connection.CreateCommand();
+                checkCommand.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='Users'";
+                var result = checkCommand.ExecuteScalar();
+
+                if (result == null)
+                {
+                    // Table doesn't exist, create it
+                    using var createCommand = connection.CreateCommand();
+                    createCommand.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS Users (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Name TEXT NOT NULL DEFAULT '',
+                            Email TEXT NOT NULL DEFAULT '',
+                            Password TEXT NOT NULL DEFAULT '',
+                            Role TEXT NOT NULL DEFAULT 'Student',
+                            Bio TEXT NOT NULL DEFAULT '',
+                            AlternativePassword TEXT NOT NULL DEFAULT ''
+                        )";
+                    createCommand.ExecuteNonQuery();
+                    Console.WriteLine("Login page: Created Users table.");
+                }
+            }
+            finally
+            {
+                if (!wasOpen)
+                {
+                    connection.Close();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Login page: Error ensuring Users table exists: {ex.Message}");
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        // Validate input
+        if (string.IsNullOrWhiteSpace(usernameOrEmail) || string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Please fill in all fields.";
+            return;
+        }
+
+        try
+        {
+            // Try to find teacher by email or username (must be a Teacher role)
+            var teacher = await _context.Users
+                .FirstOrDefaultAsync(u => 
+                    (u.Email == usernameOrEmail || u.Name == usernameOrEmail) 
+                    && u.Role == "Teacher");
+
+            if (teacher == null)
+            {
+                errorMessage = "Incorrect email/username or password, or you are not registered as a teacher.";
+                return;
+            }
+
+            // Verify password
+            if (teacher.Password != password)
+            {
+                errorMessage = "Incorrect email/username or password.";
+                return;
+            }
+
+            // Set user session
+            UserSessionService.SetCurrentUser(teacher.Id, teacher.Name ?? "Teacher", teacher.Role ?? "Teacher");
+            Console.WriteLine($"Teacher login: SetCurrentUser called for UserId={teacher.Id}, Name={teacher.Name}");
+
+            // Login successful
+            successMessage = "Login successful! Redirecting...";
+            await Task.Delay(1000);
+            
+            // Navigate to teacher dashboard
+            Navigation.NavigateTo("/teacherdashboard", true);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred during login: {ex.Message}";
+            Console.WriteLine($"Login Error: {ex}");
+        }
+    }
+
+    private void GoToSignup() => Navigation.NavigateTo("/signupt", true);
+    private void GoToForgotPassword() => Navigation.NavigateTo("/forgotpasswordt", true);
+    private void GoToHome() => Navigation.NavigateTo("/", true);
+}

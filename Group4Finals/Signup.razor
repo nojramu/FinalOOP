@@ -1,0 +1,423 @@
+@page "/signup"
+@inject NavigationManager Navigation
+@inject SmartQuiz.Data.AppDbContext _context
+@inject SmartQuiz.Services.DbContextFactory _dbContextFactory
+@using SmartQuiz.Models
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<style>
+    /* --- your same CSS --- */
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+    }
+
+    .container {
+        display: flex;
+        height: 100vh;
+        font-family: 'Poppins', sans-serif;
+        background-color: #f9f9f9;
+    }
+
+    .left-panel {
+        flex: 1;
+        background-color: #61c2a2;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 30px;
+        height: 100vh;
+    }
+
+    .logo {
+        margin-left: 8px;
+        cursor: pointer;
+    }
+
+    .logo img {
+        width: 300px;
+        height: auto;
+    }
+
+    .illustration {
+        margin-top: 70px;
+        display: flex;
+        justify-content: center;
+        width: 95%;
+    }
+
+    .illustration img {
+        width: 100%;
+        max-width: 800px;
+        height: auto;
+    }
+
+    .right-panel {
+        flex: 1;
+        background-color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
+    }
+
+    nav {
+        position: absolute;
+        top: 20px;
+        right: 40px;
+    }
+
+    nav a {
+        margin-left: 20px;
+        text-decoration: none;
+        font-weight: bold;
+        color: black;
+    }
+
+    nav a:hover {
+        text-decoration: underline;
+    }
+
+    .signup-form {
+        width: 70%;
+        max-width: 350px;
+        text-align: center;
+    }
+
+    .signup-form h2 {
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+        color: #000;
+    }
+
+    .signup-form label {
+        display: block;
+        text-align: left;
+        margin: 8px 0 5px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+
+    .signup-form input {
+        width: 100%;
+        padding: 8px 36px 8px 8px;
+        border: none;
+        border-bottom: 2px solid #000;
+        outline: none;
+        font-size: 1rem;
+        background-color: transparent;
+        letter-spacing: 0.5px;
+    }
+
+    .input-wrapper {
+        position: relative;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .toggle-password-btn {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        padding: 4px;
+        font-size: 0.9rem;
+        color: #4daf8f;
+    }
+
+    .error-message {
+        color: red;
+        font-size: 0.85rem;
+        text-align: left;
+        margin-bottom: 10px;
+    }
+
+    .signup-btn {
+        margin-top: 15px;
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        background-color: #4daf8f;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .signup-btn:hover {
+        opacity: 0.9;
+    }
+
+    .login-btn {
+        margin-top: 10px;
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 20px;
+        background-color: black;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .login-btn:hover {
+        background-color: #333;
+    }
+
+    .success-message {
+        color: green;
+        font-size: 0.95rem;
+        margin-top: 10px;
+    }
+
+    .footer {
+        text-align: center;
+        padding: 30px 0;
+        background-color: #61c2a2;
+        color: white;
+        margin-top: 50px;
+        font-size: 0.95rem;
+    }
+</style>
+
+<div class="container">
+    <!-- LEFT SIDE -->
+    <div class="left-panel">
+        <div class="logo" @onclick="GoToHome">
+            <img src="images/smartquiz-logo.png" alt="SmartQuiz Logo" />
+        </div>
+        <div class="illustration">
+            <img src="images/student-writing.png" alt="Student Illustration" />
+        </div>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right-panel">
+        <nav>
+            <a href="/">Home</a>
+            <a href="/about">About us</a>
+        </nav>
+        <div class="signup-form">
+            <h2>Welcome, Student!</h2>
+            <label>Username</label>
+            <div class="input-wrapper">
+                <input @bind="username" type="text" placeholder="Enter Username" />
+            </div>
+            @if (!string.IsNullOrEmpty(usernameError))
+            {
+                <div class="error-message">@usernameError</div>
+            }
+
+            <label>Email</label>
+            <div class="input-wrapper">
+                <input @bind="email" type="email" placeholder="Enter Email" />
+            </div>
+            @if (!string.IsNullOrEmpty(emailError))
+            {
+                <div class="error-message">@emailError</div>
+            }
+
+            <label>Password</label>
+            <div class="input-wrapper">
+                <input @bind="password" type="@PasswordInputType" placeholder="Enter Password" />
+                <button type="button" class="toggle-password-btn" @onclick="TogglePasswordVisibility">
+                    @(showPassword ? "Hide" : "Show")
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(passwordError))
+            {
+                <div class="error-message">@passwordError</div>
+            }
+
+            <label>Confirm Password</label>
+            <div class="input-wrapper">
+                <input @bind="confirmPassword" type="@ConfirmPasswordInputType" placeholder="Confirm Password" />
+                <button type="button" class="toggle-password-btn" @onclick="ToggleConfirmPasswordVisibility">
+                    @(showConfirmPassword ? "Hide" : "Show")
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(confirmPasswordError))
+            {
+                <div class="error-message">@confirmPasswordError</div>
+            }
+
+            <button class="signup-btn" @onclick="ValidateAndSignUp">Sign Up</button>
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="success-message">@successMessage</div>
+            }
+
+            @if (!string.IsNullOrEmpty(message) && string.IsNullOrEmpty(successMessage))
+            {
+                <div class="error-message" style="margin-top: 10px;">@message</div>
+            }
+
+            <p>Already have an account?</p>
+            <button class="login-btn" @onclick="BackToLogin">Log In</button>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    © 2025 SmartQuiz | Making learning fun and interactive for everyone.
+</div>
+
+@code {
+    private string username = "";
+    private string email = "";
+    private string password = "";
+    private string confirmPassword = "";
+    private string usernameError = "";
+    private string emailError = "";
+    private string passwordError = "";
+    private string confirmPasswordError = "";
+    private string successMessage = "";
+    private string message = "";
+    private bool showPassword = false;
+    private bool showConfirmPassword = false;
+
+    private string PasswordInputType => showPassword ? "text" : "password";
+    private string ConfirmPasswordInputType => showConfirmPassword ? "text" : "password";
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    private void ToggleConfirmPasswordVisibility()
+    {
+        showConfirmPassword = !showConfirmPassword;
+    }
+
+    private void GoToHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void BackToLogin()
+    {
+        Navigation.NavigateTo("/login");
+    }
+
+    private async Task ValidateAndSignUp()
+    {
+        // Clear previous errors
+        usernameError = "";
+        emailError = "";
+        passwordError = "";
+        confirmPasswordError = "";
+        successMessage = "";
+        message = "";
+
+        // Validation
+        bool isValid = true;
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            usernameError = "Username is required";
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            emailError = "Email is required";
+            isValid = false;
+        }
+        else if (!email.Contains("@") || !email.Contains("."))
+        {
+            emailError = "Please enter a valid email address";
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            passwordError = "Password is required";
+            isValid = false;
+        }
+        else if (password.Length < 6)
+        {
+            passwordError = "Password must be at least 6 characters";
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(confirmPassword))
+        {
+            confirmPasswordError = "Please confirm your password";
+            isValid = false;
+        }
+        else if (password != confirmPassword)
+        {
+            confirmPasswordError = "Passwords do not match";
+            isValid = false;
+        }
+
+        if (!isValid)
+        {
+            return;
+        }
+
+        // If validation passes, proceed with registration
+        await RegisterUser();
+    }
+
+    private async Task RegisterUser()
+    {
+        try
+        {
+            // ✅ Check if email already exists
+            var existing = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (existing != null)
+            {
+                emailError = "Email already registered!";
+                return;
+            }
+
+            // ✅ Create new user with Role = "Student"
+            var newUser = new User
+            {
+                Name = username,   // Use "Name" property in your model
+                Email = email,
+                Password = password,
+                Role = "Student" // Set role as Student
+            };
+
+            // ✅ Save to database
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+
+            // ✅ Create user-specific database for quizzes and questions
+            _dbContextFactory.EnsureUserDatabaseExists(newUser.Id);
+
+            successMessage = "Registration successful! Redirecting to login...";
+            message = "Registration successful! Redirecting to login...";
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/login");
+        }
+        catch (Exception ex)
+        {
+            // Show the actual error message for debugging
+            var errorMsg = ex.Message;
+            if (ex.InnerException != null)
+            {
+                errorMsg += $" | Inner: {ex.InnerException.Message}";
+            }
+            
+            message = $"Registration error: {errorMsg}";
+            emailError = $"Registration failed: {errorMsg}";
+            
+            // Log to console for debugging
+            Console.WriteLine($"Registration Error: {ex}");
+            Console.WriteLine($"StackTrace: {ex.StackTrace}");
+        }
+    }
+}

@@ -1,0 +1,583 @@
+@page "/createquiz"
+@using SmartQuiz.Models
+@using SmartQuiz.Services
+@inject NavigationManager Navigation
+@inject QuizService QuizService
+@inject UserSessionService UserSession
+@inject SmartQuiz.Data.AppDbContext _context
+@inject NotificationService NotificationService
+@inject DbContextFactory DbContextFactory
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+/* NAVBAR */
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+    overflow: hidden;
+}
+
+.profile-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.nav-links a {
+    margin-left: 30px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.nav-links a:hover {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.logout {
+    color: #e74c3c !important;
+    font-weight: 600;
+}
+
+.logout:hover {
+    background: #e74c3c !important;
+    color: white !important;
+}
+
+/* MAIN LAYOUT */
+.main-content {
+    display: flex;
+    min-height: calc(100vh - 90px);
+    padding: 50px 40px;
+}
+
+/* LEFT SIDE: QUIZ CARDS */
+.left-panel {
+    flex: 0.7;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.left-panel h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 10px;
+}
+
+.quiz-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.2);
+    position: relative;
+    overflow: visible;
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.quiz-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #61c2a2, #48a583, #667eea);
+    border-radius: 20px 20px 0 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.quiz-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.quiz-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quiz-card h3::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 2px;
+}
+
+.quiz-card p {
+    font-size: 0.95rem;
+    color: #7f8c8d;
+    line-height: 1.5;
+    margin-bottom: 15px;
+}
+
+/* Buttons inside quiz card */
+.quiz-buttons {
+    display: flex;
+    gap: 10px;
+    position: relative;
+    z-index: 100;
+}
+
+.quiz-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+    position: relative;
+    z-index: 101;
+    pointer-events: auto;
+}
+
+.create-btn {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: #fff;
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 100;
+}
+
+.publish-btn {
+    background: linear-gradient(135deg, #48a583, #61c2a2);
+    color: #fff;
+}
+
+.delete-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: #fff;
+}
+
+.create-btn:hover, .publish-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(97, 194, 162, 0.4);
+}
+
+.delete-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+}
+
+/* RIGHT SIDE */
+.right-panel {
+    flex: 1.3;
+    padding-left: 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.right-panel h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+    color: white;
+}
+
+.right-panel p {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    width: 90%;
+    font-weight: 300;
+}
+
+
+/* Responsive Design */
+@@media (max-width: 768px) {
+    .main-content {
+        flex-direction: column;
+        padding: 30px 20px;
+    }
+    
+    .navbar {
+        padding: 10px 20px;
+    }
+    
+    .nav-links a {
+        margin-left: 15px;
+        padding: 6px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .right-panel {
+        padding-left: 0;
+        margin-top: 30px;
+    }
+    
+    .right-panel h1 {
+        font-size: 2.2rem;
+    }
+    
+    .left-panel {
+        flex: 1;
+    }
+}
+
+/* Animation */
+@@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.quiz-card:nth-child(1) { animation-delay: 0.1s; }
+.quiz-card:nth-child(2) { animation-delay: 0.2s; }
+.quiz-card:nth-child(3) { animation-delay: 0.3s; }
+.quiz-card:nth-child(4) { animation-delay: 0.4s; }
+</style>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-left">
+        @if (!string.IsNullOrWhiteSpace(currentUserPhoto))
+        {
+            <img src="@currentUserPhoto" alt="avatar" class="profile-photo" />
+        }
+        else
+        {
+            <div class="profile-icon">👤</div>
+        }
+        <a href="/profile" style="color: #2c3e50; font-weight: 600; font-size: 1.1rem; text-decoration: none;">Teacher Profile</a>
+    </div>
+
+    <div class="nav-links">
+        <a href="/teacherdashboard">Dashboard</a>
+        <a href="/view-quizzes">View Quizzes</a>
+        <a href="/leaderboard">View Leaderboard</a>
+        <a href="/createquiz" style="font-weight:bold; background: linear-gradient(135deg, #61c2a2, #48a583); color: white;">Create A Quiz</a>
+        <a href="/" class="logout">Log out</a>
+    </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+    <div class="left-panel">
+        <h2 style="margin-bottom: 5px;">Create a quiz:</h2>
+
+        @if (unpublishedQuizzes.Count == 0)
+        {
+            <p style="color: rgba(255,255,255,0.9); font-size: 1.1rem; margin-bottom: 20px;">
+                No unpublished quizzes. Create a new quiz to get started!
+            </p>
+        }
+        else
+        {
+            @foreach (var quiz in unpublishedQuizzes)
+            {
+                <div class="quiz-card">
+                    <h3>@quiz.Title</h3>
+                    <p>@quiz.Description</p>
+                    <div class="quiz-buttons">
+                        <button class="create-btn" type="button" @onclick="@(() => HandleEdit(quiz.Id))" @onclick:stopPropagation="true">Edit</button>
+                        <button class="publish-btn" type="button" @onclick="@(async () => await HandlePublish(quiz.Id))" @onclick:stopPropagation="true">Publish</button>
+                        <button class="delete-btn" type="button" @onclick="@(async () => await HandleDelete(quiz.Id))" @onclick:stopPropagation="true">Delete</button>
+                    </div>
+                </div>
+            }
+        }
+
+        <button class="create-btn" type="button" style="width: fit-content; margin-top: 15px; cursor: pointer; position: relative; z-index: 100;" @onclick="@(() => CreateBlankQuiz())" @onclick:stopPropagation="true">
+            + Create New Quiz
+        </button>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right-panel">
+        <h1>Start creating your<br />quizzes</h1>
+        <p>
+            Create and customize your quiz — organize, refine, and make learning easy for your students starting here.
+        </p>
+    </div>
+</div>
+
+@code {
+    private List<Quiz> unpublishedQuizzes = new();
+    private string currentUserPhoto = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            // Load current user's photo
+            var teacherId = UserSession.CurrentUserId ?? 0;
+            if (teacherId > 0)
+            {
+                try
+                {
+                    var user = _context.Users.FirstOrDefault(u => u.Id == teacherId);
+                    currentUserPhoto = user?.PhotoPath ?? string.Empty;
+                }
+                catch { }
+            }
+        }
+        catch { }
+        
+        try
+        {
+            LoadUnpublishedQuizzes();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in OnInitialized: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            unpublishedQuizzes = new List<Quiz>();
+        }
+    }
+
+    private void LoadUnpublishedQuizzes()
+    {
+        try
+        {
+            unpublishedQuizzes = QuizService.GetUnpublishedQuizzes();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading unpublished quizzes: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            unpublishedQuizzes = new List<Quiz>();
+        }
+    }
+
+    private void CreateBlankQuiz()
+    {
+        try
+        {
+            Console.WriteLine("Creating blank quiz button clicked!");
+            
+            // Verify user is a teacher before proceeding
+            var currentUserId = UserSession.CurrentUserId;
+            var currentUserRole = UserSession.CurrentUserRole;
+            Console.WriteLine($"CreateBlankQuiz: CurrentUserId={currentUserId}, CurrentUserRole={currentUserRole}");
+            
+            if (!UserSession.IsLoggedIn || currentUserRole != "Teacher")
+            {
+                var errorMsg = $"Only teachers can create quizzes. Current role: {currentUserRole ?? "Not logged in"}";
+                Console.WriteLine($"❌ {errorMsg}");
+                _ = Task.Run(async () => await JSRuntime.InvokeVoidAsync("alert", $"❌ {errorMsg}"));
+                return;
+            }
+            
+            var newQuiz = new Quiz
+            {
+                Title = $"New Quiz",
+                Description = "Untitled quiz...",
+                IsPublished = false,
+                UserId = 0 // Will be set by QuizService.AddQuiz
+            };
+            
+            Console.WriteLine("Calling QuizService.AddQuiz...");
+            QuizService.AddQuiz(newQuiz);
+            Console.WriteLine($"Quiz created with ID: {newQuiz.Id}");
+            
+            LoadUnpublishedQuizzes();
+            StateHasChanged();
+            Console.WriteLine("Navigating to quiz builder...");
+            Navigation.NavigateTo($"/quizbuilder/{newQuiz.Id}", forceLoad: false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error creating quiz: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            // Show error to user
+            _ = Task.Run(async () => await JSRuntime.InvokeVoidAsync("alert", $"❌ Error creating quiz: {ex.Message}"));
+        }
+    }
+
+    private void HandleEdit(int id)
+    {
+        Console.WriteLine($"EDIT BUTTON CLICKED for quiz {id}");
+        EditQuiz(id);
+    }
+
+    private async Task HandlePublish(int id)
+    {
+        Console.WriteLine($"PUBLISH BUTTON CLICKED for quiz {id}");
+        await PublishQuiz(id);
+    }
+
+    private async Task HandleDelete(int id)
+    {
+        Console.WriteLine($"DELETE BUTTON CLICKED for quiz {id}");
+        await DeleteQuiz(id);
+    }
+
+    private void EditQuiz(int id)
+    {
+        try
+        {
+            Console.WriteLine($"Editing quiz {id}");
+            Navigation.NavigateTo($"/quizbuilder/{id}", forceLoad: false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error editing quiz: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    private async Task PublishQuiz(int id)
+    {
+        try
+        {
+            Console.WriteLine($"Publishing quiz {id}");
+            
+            var quiz = QuizService.GetQuizById(id);
+            Console.WriteLine($"Quiz found: {quiz != null}");
+            
+            if (quiz != null)
+            {
+                Console.WriteLine($"Current IsPublished status: {quiz.IsPublished}");
+                quiz.IsPublished = true;
+                Console.WriteLine($"Setting IsPublished to: {quiz.IsPublished}");
+                
+                QuizService.UpdateQuiz(quiz);
+                Console.WriteLine($"Quiz {id} updated in database");
+                
+                // Create notifications for all students when quiz is published
+                try
+                {
+                    // Use MasterDbContext to access Users database
+                    using var usersContext = DbContextFactory.GetMasterDbContext();
+                    var students = usersContext.Users
+                        .Where(u => u.Role == "Student")
+                        .ToList();
+                    
+                    Console.WriteLine($"Found {students.Count} students to notify about quiz publication");
+                    
+                    foreach (var student in students)
+                    {
+                        NotificationService.CreateNotification(
+                            studentId: student.Id,
+                            type: "New Quiz Published",
+                            title: $"New Quiz: {quiz.Title ?? "Untitled Quiz"}",
+                            message: quiz.Description ?? "A new quiz has been published and is now available.",
+                            quizId: quiz.Id
+                        );
+                    }
+                    
+                    Console.WriteLine($"Created notifications for {students.Count} students about quiz {id}");
+                }
+                catch (Exception notifEx)
+                {
+                    Console.WriteLine($"Error creating notifications: {notifEx.Message}");
+                    Console.WriteLine($"Stack trace: {notifEx.StackTrace}");
+                    // Don't fail the publish if notifications fail
+                }
+                
+                // Verify the update worked
+                var verifyQuiz = QuizService.GetQuizById(id);
+                Console.WriteLine($"Verification - IsPublished: {verifyQuiz?.IsPublished}");
+                
+                await Task.Delay(300); // Small delay to ensure save completes
+                LoadUnpublishedQuizzes(); // Refresh the list to remove published quiz
+                await InvokeAsync(StateHasChanged);
+                Console.WriteLine($"Quiz {id} published! Navigating...");
+                
+                Navigation.NavigateTo("/view-quizzes", forceLoad: false);
+            }
+            else
+            {
+                Console.WriteLine($"Quiz {id} not found!");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error publishing quiz: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            await InvokeAsync(() => StateHasChanged());
+        }
+    }
+
+    private async Task DeleteQuiz(int id)
+    {
+        try
+        {
+            // Confirm deletion using JavaScript
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to permanently delete this quiz? This action cannot be undone.");
+            
+            if (!confirmed)
+            {
+                return;
+            }
+
+            Console.WriteLine($"Deleting quiz {id}");
+            
+            QuizService.DeleteQuiz(id);
+            Console.WriteLine($"Quiz {id} deleted from database");
+            
+            await Task.Delay(200); // Small delay to ensure delete completes
+            LoadUnpublishedQuizzes(); // Refresh the list
+            await InvokeAsync(StateHasChanged); // Refresh the UI to reflect the deletion
+            Console.WriteLine($"Quiz {id} deleted! UI refreshed");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting quiz: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+    }
+}

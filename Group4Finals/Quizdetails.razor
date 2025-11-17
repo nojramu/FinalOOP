@@ -1,0 +1,418 @@
+@page "/quiz/{id:int}"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@inject NavigationManager Navigation
+@inject QuizService QuizService
+@using System.Collections.Generic
+@rendermode InteractiveServer
+
+<PageTitle>Quiz Details</PageTitle>
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background-color: #f9f9f9;
+}
+
+/* NAVBAR */
+.navbar {
+    background-color: #61c2a2;
+    padding: 10px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    background-color: #fff;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.nav-links a {
+    margin-left: 25px;
+    text-decoration: none;
+    color: #000;
+    font-weight: 500;
+}
+
+.nav-links a:hover {
+    text-decoration: underline;
+}
+
+.logout {
+    color: #000;
+    font-weight: 600;
+}
+
+/* MAIN SECTION */
+.quiz-details-container {
+    max-width: 800px;
+    margin: 50px auto;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+}
+
+.quiz-details-container h3 {
+    color: #333;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.quiz-details-container p {
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+
+.quiz-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border-left: 4px solid #61c2a2;
+}
+
+.quiz-info-item {
+    margin: 8px 0;
+    color: #555;
+    font-size: 0.95rem;
+}
+
+.quiz-info-item strong {
+    color: #333;
+    margin-right: 8px;
+}
+
+.question-card {
+    background: #fff;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 15px;
+}
+
+.question-number {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-right: 15px;
+}
+
+.question-content {
+    flex: 1;
+}
+
+.question-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+.question-type {
+    display: inline-block;
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.answer-section {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.answer-label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.correct-answer {
+    background: #d4edda;
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+    color: #155724;
+    font-weight: 600;
+}
+
+.option-item {
+    padding: 8px 12px;
+    margin: 5px 0;
+    background: #fff;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+
+.option-item.correct {
+    background: #d4edda;
+    border-color: #28a745;
+    font-weight: 600;
+    color: #155724;
+}
+
+.option-letter {
+    display: inline-block;
+    width: 25px;
+    height: 25px;
+    background: #61c2a2;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 25px;
+    font-weight: bold;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.option-item.correct .option-letter {
+    background: #28a745;
+}
+
+.answer-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.answer-list li {
+    background: #d4edda;
+    border: 2px solid #28a745;
+    border-radius: 6px;
+    padding: 10px 15px;
+    margin: 5px 0;
+    color: #155724;
+    font-weight: 600;
+}
+
+.timer-info {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 10px;
+}
+
+/* BUTTONS */
+.back-btn {
+    background-color: #61c2a2;
+    border: none;
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.back-btn:hover {
+    opacity: 0.9;
+}
+</style>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-left">
+        <div class="profile-icon">👤</div>
+        <span style="color: white; font-weight: 600;">Profile</span>
+    </div>
+
+    <div class="nav-links">
+        <a href="/teacherdashboard">Dashboard</a>
+        <a href="/view-quizzes" style="font-weight: bold;">View Quizzes</a>
+        <a href="/leaderboard">View Leaderboard</a>
+        <a href="/createquiz">Create A Quiz</a>
+        <a href="/" class="logout">Log out</a>
+    </div>
+</div>
+
+<!-- QUIZ DETAILS CONTENT -->
+<div class="quiz-details-container">
+    @if (quiz == null)
+    {
+        <p>Loading quiz...</p>
+    }
+    else
+    {
+        <div>
+            <h3>🧠 @quiz.Title</h3>
+            <p>@quiz.Description</p>
+
+            <div class="quiz-info">
+                <div class="quiz-info-item">
+                    <strong>Quiz Code:</strong> @(string.IsNullOrWhiteSpace(quiz.QuizCode) ? "Not set" : quiz.QuizCode)
+                </div>
+                <div class="quiz-info-item">
+                    <strong>Total Time Limit:</strong> @quiz.TotalTimeLimit minutes
+                </div>
+                <div class="quiz-info-item">
+                    <strong>Number of Questions:</strong> @quiz.Questions.Count
+                </div>
+            </div>
+
+            <h4 style="color: #333; margin-bottom: 20px; font-weight: 700;">Questions and Answers:</h4>
+
+            @if (quiz.Questions == null || quiz.Questions.Count == 0)
+            {
+                <p style="color: #999; font-style: italic;">No questions added to this quiz yet.</p>
+                <p style="color: #999; font-size: 0.9rem;">Quiz ID: @id, Questions count: @(quiz.Questions?.Count ?? 0)</p>
+            }
+            else
+            {
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">Displaying @quiz.Questions.Count question(s)</p>
+                @for (int i = 0; i < quiz.Questions.Count; i++)
+                {
+                    var question = quiz.Questions[i];
+                    int questionNum = i + 1;
+                    
+                    <div class="question-card">
+                        <div class="question-header">
+                            <div class="question-number">@questionNum</div>
+                            <div class="question-content">
+                                <div class="question-text">@question.QuestionText</div>
+                                <span class="question-type">@question.Type</span>
+                                @if (question.TimeLimit.HasValue)
+                                {
+                                    <div class="timer-info">⏱️ Time Limit: @question.TimeLimit seconds</div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="answer-section">
+                            <span class="answer-label">✅ Correct Answer:</span>
+                            
+                            @if (question.Type == "Multiple Choice")
+                            {
+                                @if (question.Options != null && question.Options.Count > 0 && question.CorrectAnswerIndex >= 0 && question.CorrectAnswerIndex < question.Options.Count)
+                                {
+                                    <div class="option-item correct">
+                                        <span class="option-letter">@(char.ConvertFromUtf32(65 + question.CorrectAnswerIndex))</span>
+                                        @question.Options[question.CorrectAnswerIndex]
+                                    </div>
+                                    <div style="margin-top: 10px; color: #666; font-size: 0.9rem;">
+                                        <strong>All Options:</strong>
+                                        @for (int j = 0; j < question.Options.Count; j++)
+                                        {
+                                            <div class="option-item" style="margin-top: 5px;">
+                                                <span class="option-letter">@(char.ConvertFromUtf32(65 + j))</span>
+                                                @question.Options[j]
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p style="color: #d9534f;">No correct answer selected or options not available</p>
+                                }
+                            }
+                            else if (question.Type == "True or False")
+                            {
+                                <div class="correct-answer">
+                                    @(question.CorrectAnswer == "true" ? "True" : "False")
+                                </div>
+                            }
+                            else if (question.Type == "Identification")
+                            {
+                                <ul class="answer-list">
+                                    @foreach (var answer in question.CorrectAnswer.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                                    {
+                                        <li>@answer</li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            <button class="back-btn" @onclick="GoBack" style="margin-top: 20px;">⬅ Back to Quizzes</button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private Quiz? quiz;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            Console.WriteLine($"Loading quiz with ID: {id}");
+            quiz = QuizService.GetQuizById(id);
+            
+            if (quiz == null)
+            {
+                Console.WriteLine($"Quiz with ID {id} not found!");
+            }
+            else
+            {
+                Console.WriteLine($"Quiz loaded: {quiz.Title}");
+                Console.WriteLine($"Number of questions: {quiz.Questions?.Count ?? 0}");
+                
+                if (quiz.Questions != null && quiz.Questions.Count > 0)
+                {
+                    // Ensure Options are properly loaded from JSON
+                    foreach (var question in quiz.Questions)
+                    {
+                        // Access Options property to trigger deserialization
+                        var options = question.Options;
+                        Console.WriteLine($"Question {question.Id}: {question.QuestionText}, Type: {question.Type}, Options count: {options?.Count ?? 0}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Quiz has no questions!");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading quiz: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/view-quizzes");
+    }
+}

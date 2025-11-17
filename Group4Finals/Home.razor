@@ -1,0 +1,185 @@
+﻿@page "/"
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    background-color: #f9f9f9;
+}
+
+/* LEFT SIDE (green background with logo + illustration) */
+.left-panel {
+    flex: 1;
+    background-color: #61c2a2;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 24px;
+    height: 100vh;
+}
+
+.logo {
+    margin-left: 8px;
+    cursor: pointer;
+}
+
+.logo img {
+    width: 300px;
+    height: auto;
+}
+
+.illustration {
+    margin-top: 50px;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.illustration img {
+    width: 900%;
+    max-width: 800px;
+    height: auto;
+}
+
+/* RIGHT SIDE (Welcome section) */
+.right-panel {
+    flex: 1;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
+}
+
+nav {
+    position: absolute;
+    top: 20px;
+    right: 40px;
+}
+
+nav a {
+    margin-left: 20px;
+    text-decoration: none;
+    font-weight: bold;
+    color: black;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+.welcome-box {
+    width: 70%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.welcome-box h1 {
+    font-size: 4rem;
+    color: #000;
+    margin-bottom: 20livepx;
+}
+
+.welcome-box p {
+    font-size: 2rem;
+    color: #555;
+    margin-bottom: 30px;
+}
+
+/* Buttons */
+.button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: 0.2s;
+}
+
+.student-btn {
+    background-color: #4daf8f;
+    color: white;
+}
+
+.student-btn:hover {
+    opacity: 0.9;
+}
+
+.teacher-btn {
+    background-color: #2e7d6b;
+    color: white;
+}
+
+.teacher-btn:hover {
+    background-color: #256758;
+}
+
+.footer {
+    text-align: center;
+    padding: 30px 0;
+    background-color: #61c2a2;
+    color: white;
+    margin-top: 50px;
+    font-size: 0.95rem;
+}
+
+</style>
+
+
+
+<div class="container">
+    <!-- LEFT SIDE -->
+    <div class="left-panel">
+        <div class="logo" @onclick="GoToHome">
+            <img src="images/smartquiz-logo.png" alt="SmartQuiz Logo" />
+        </div>
+        <div class="illustration">
+            <img src="images/forhomepage.png" alt="Student Illustration" />
+        </div>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right-panel">
+        <nav>
+            <a href="/">Home</a>
+            <a href="/about">About us</a>
+        </nav>
+
+        <div class="welcome-box">
+            <h1>Welcome to SmartQuiz!</h1>
+            <p>Make learning interactive and fun — take quizzes anytime, anywhere.</p>
+
+            <p><strong>Login as:</strong></p>
+
+            <button class="button student-btn" @onclick="GoToStudentLogin">Student</button>
+            <button class="button teacher-btn" @onclick="GoToTeacherLogin">Teacher</button>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    © 2025 SmartQuiz | Making learning fun and interactive for everyone.
+</div>
+
+
+
+@code {
+    private void GoToStudentLogin() => Navigation.NavigateTo("/login", true);
+    private void GoToTeacherLogin() => Navigation.NavigateTo("/logint", true);
+    private void GoToHome() => Navigation.NavigateTo("/", true);
+}

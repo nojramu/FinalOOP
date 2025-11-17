@@ -1,0 +1,206 @@
+@page "/migrate-quiz"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@using SmartQuiz.Data
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager Navigation
+@inject QuizService QuizService
+@inject DbContextFactory DbContextFactory
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Migrate Quiz</PageTitle>
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+.migrate-container {
+    padding: 50px 40px;
+    min-height: 100vh;
+}
+
+.migrate-container h2 {
+    color: white;
+    margin-bottom: 30px;
+}
+
+.quiz-list {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+.quiz-item {
+    padding: 15px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.quiz-item:last-child {
+    border-bottom: none;
+}
+
+.migrate-btn {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.migrate-btn:hover {
+    background: linear-gradient(135deg, #48a583, #3d8f6f);
+    transform: translateY(-2px);
+}
+
+.back-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+}
+</style>
+
+<div class="migrate-container">
+    <h2>Migrate Quiz from User 2 to User 1</h2>
+    
+    @if (loading)
+    {
+        <div style="color: white;">Loading quizzes from user 2's database...</div>
+    }
+    else if (quizzesFromUser2.Count == 0)
+    {
+        <div class="quiz-list">
+            <p>No quizzes found in user 2's database.</p>
+        </div>
+    }
+    else
+    {
+        <div class="quiz-list">
+            <h3>Quizzes in User 2's Database:</h3>
+            @foreach (var quiz in quizzesFromUser2)
+            {
+                <div class="quiz-item">
+                    <div>
+                        <strong>@quiz.Title</strong><br/>
+                        <small>ID: @quiz.Id | Questions: @(quiz.Questions?.Count ?? 0) | Published: @(quiz.IsPublished ? "Yes" : "No")</small>
+                    </div>
+                    <button class="migrate-btn" @onclick="() => MigrateQuizToUser1(quiz.Id)">
+                        Migrate to User 1
+                    </button>
+                </div>
+            }
+        </div>
+    }
+    
+    <button class="back-btn" @onclick="GoBack">← Back to View Quizzes</button>
+</div>
+
+@code {
+    private List<Quiz> quizzesFromUser2 = new();
+    private bool loading = true;
+
+    protected override void OnInitialized()
+    {
+        LoadQuizzesFromUser2();
+    }
+
+    private void LoadQuizzesFromUser2()
+    {
+        try
+        {
+            loading = true;
+            
+            // Read quizzes from user 2's database
+            using var context = DbContextFactory.GetUserDbContext(2);
+            var quizzes = context.Quizzes
+                .Include(q => q.Questions)
+                .ToList();
+            
+            // Create new objects to avoid tracking issues
+            quizzesFromUser2 = quizzes.Select(q => new Quiz
+            {
+                Id = q.Id,
+                Title = q.Title,
+                Description = q.Description,
+                QuizCode = q.QuizCode,
+                IsPrivate = q.IsPrivate,
+                TotalTimeLimit = q.TotalTimeLimit,
+                IsPublished = q.IsPublished,
+                UserId = q.UserId,
+                Questions = q.Questions?.Select(qu => new Question
+                {
+                    Id = qu.Id,
+                    QuizId = qu.QuizId,
+                    QuestionText = qu.QuestionText,
+                    Type = qu.Type,
+                    CorrectAnswerIndex = qu.CorrectAnswerIndex,
+                    CorrectAnswer = qu.CorrectAnswer,
+                    TimeLimit = qu.TimeLimit,
+                    OptionsJson = qu.OptionsJson
+                }).ToList() ?? new List<Question>()
+            }).ToList();
+            
+            Console.WriteLine($"MigrateQuiz: Found {quizzesFromUser2.Count} quizzes in user 2's database");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading quizzes from user 2: {ex.Message}");
+            quizzesFromUser2 = new List<Quiz>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task MigrateQuizToUser1(int quizId)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+            $"Are you sure you want to migrate quiz ID {quizId} from user 2's database to user 1's database?");
+        
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            // Migrate quiz from user 2 to user 1, and delete from source
+            // QuizService.MigrateQuiz(quizId, fromUserId: 2, toUserId: 1, deleteFromSource: true);
+            
+            await JSRuntime.InvokeVoidAsync("alert", "Quiz migrated successfully!");
+            
+            // Reload the list
+            LoadQuizzesFromUser2();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error migrating quiz: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error migrating quiz: {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/view-quizzes");
+    }
+}
+

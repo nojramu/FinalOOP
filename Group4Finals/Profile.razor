@@ -1,0 +1,553 @@
+@page "/profile"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Forms
+@inject NavigationManager Navigation
+@inject SmartQuiz.Data.AppDbContext _context
+@inject UserSessionService UserSessionService
+@rendermode InteractiveServer
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+/* HEADER */
+.header {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+}
+
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.header-nav a {
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 10px 18px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+}
+
+.header-nav a:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.header-nav a.active {
+    background: rgba(255, 255, 255, 0.25);
+    font-weight: 600;
+}
+
+.header-nav a.logout {
+    color: #f8d7da;
+}
+
+.header-nav a.logout:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-square {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: #61c2a2;
+}
+
+.logo-text {
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+/* MAIN LAYOUT */
+.main-layout {
+    display: flex;
+    min-height: calc(100vh - 80px);
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 250px;
+    background: white;
+    padding: 30px 0;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-item {
+    margin: 0;
+    padding: 0;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 15px 30px;
+    color: #61c2a2;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    cursor: pointer;
+}
+
+.sidebar-link:hover {
+    background: rgba(97, 194, 162, 0.1);
+}
+
+.sidebar-link.active {
+    background: #61c2a2;
+    color: white;
+}
+
+.sidebar-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #48a583;
+}
+
+.sidebar-link-icon {
+    margin-right: 12px;
+    font-size: 1.1rem;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 10px 30px;
+}
+
+.sidebar-footer {
+    padding: 20px 30px;
+    font-size: 0.75rem;
+    color: #999;
+    text-align: center;
+}
+
+/* MAIN CONTENT */
+.main-content {
+    flex: 1;
+    padding: 40px;
+    background: #f5f5f5;
+}
+
+.profile-container {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    padding-bottom: 30px;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 40px;
+}
+
+.profile-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 8px 20px rgba(97, 194, 162, 0.3);
+    overflow: hidden;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-avatar-icon {
+    font-size: 4rem;
+    color: white;
+}
+
+.edit-avatar-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid #61c2a2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.edit-avatar-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.profile-info-header {
+    flex: 1;
+}
+
+.profile-username {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.edit-profile-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #2c3e50;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.edit-profile-link:hover {
+    color: #61c2a2;
+}
+
+.edit-icon {
+    font-size: 0.9rem;
+}
+
+/* PROFILE FIELDS */
+.profile-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.profile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.field-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2c3e50;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.field-value {
+    font-size: 1.1rem;
+    color: #666;
+    font-style: italic;
+    padding: 12px 0;
+    min-height: 24px;
+}
+
+.field-value.empty {
+    color: #999;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-style: normal;
+}
+
+.status-badge.student {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+}
+
+.status-badge.teacher {
+    background: linear-gradient(135deg, #e67e22, #d35400);
+    color: white;
+}
+
+/* Responsive */
+@@media (max-width: 768px) {
+    .main-layout {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+        padding: 20px 0;
+    }
+    
+    .sidebar-nav {
+        display: flex;
+        overflow-x: auto;
+    }
+    
+    .sidebar-link {
+        white-space: nowrap;
+    }
+    
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="logo-container">
+        <div class="logo-square">S</div>
+        <div class="logo-text">smartquiz account</div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(currentRole))
+    {
+        <div class="header-nav">
+            @if (currentRole.Equals("Teacher", StringComparison.OrdinalIgnoreCase))
+            {
+                <a class="@GetNavLinkClass("teacherdashboard")" href="/teacherdashboard">Dashboard</a>
+                <a class="@GetNavLinkClass("view-quizzes")" href="/view-quizzes">View Quizzes</a>
+                <a class="@GetNavLinkClass("leaderboard")" href="/leaderboard">Leaderboard</a>
+                <a class="@GetNavLinkClass("createquiz")" href="/createquiz">Create Quiz</a>
+                <a class="logout" href="/">Log out</a>
+            }
+            else
+            {
+                <a class="@GetNavLinkClass("studentdashboard")" href="/studentdashboard">Dashboard</a>
+                <a class="@GetNavLinkClass("notifications")" href="/notifications">Notifications</a>
+                <a class="@GetNavLinkClass("view-quiz-history")" href="/view-quiz-history">View Quiz History</a>
+                <a class="@GetNavLinkClass("take-quiz")" href="/take-quiz">Take Quiz</a>
+                <a class="logout" href="/">Log out</a>
+            }
+        </div>
+    }
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <ul class="sidebar-nav">
+            <li class="sidebar-item">
+                <a class="sidebar-link active" href="/profile">
+                    <span class="sidebar-link-icon">👤</span>
+                    Profile
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="@GetQuizHistoryLink()">
+                    <span class="sidebar-link-icon">📚</span>
+                    Quiz History
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="/settings">
+                    <span class="sidebar-link-icon">⚙️</span>
+                    Settings
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <div class="sidebar-divider"></div>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="/about">
+                    <span class="sidebar-link-icon">ℹ️</span>
+                    About
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="/" style="color: #e74c3c;">
+                    <span class="sidebar-link-icon">🚪</span>
+                    Log Out
+                </a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            All Rights Reserved. YEYEYE.
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <div class="profile-container">
+            <h1 style="font-size: 2rem; font-weight: 700; color: #2c3e50; margin-bottom: 30px;">Profile</h1>
+            
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    @if (!string.IsNullOrWhiteSpace(currentUser?.PhotoPath))
+                    {
+                        <img src="@currentUser!.PhotoPath" alt="avatar" />
+                    }
+                    else
+                    {
+                        <div class="profile-avatar-icon">👤</div>
+                    }
+                    <label class="edit-avatar-btn" title="Change avatar">
+                        <InputFile id="avatarFile" OnChange="OnAvatarChanged" accept="image/*" style="display:none" />
+                        <span style="color: #61c2a2; font-size: 1rem;">✏️</span>
+                    </label>
+                </div>
+                <div class="profile-info-header">
+                    <div class="profile-username">@(currentUser?.Name ?? "Username")</div>
+                </div>
+            </div>
+
+            <div class="profile-fields">
+                <div class="profile-field">
+                    <div class="field-label">Email</div>
+                    <div class="field-value @(string.IsNullOrEmpty(currentUser?.Email) ? "empty" : "")">
+                        @(string.IsNullOrEmpty(currentUser?.Email) ? "//email displayed in this part" : currentUser.Email)
+                    </div>
+                </div>
+
+                <div class="profile-field">
+                    <div class="field-label">Status</div>
+                    <div class="field-value">
+                        @if (currentUser != null && !string.IsNullOrEmpty(currentUser.Role))
+                        {
+                            <span class="status-badge @(currentUser.Role.ToLower())">@currentUser.Role</span>
+                        }
+                        else
+                        {
+                            <span class="field-value empty">//displayed if student or teacher</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="profile-field">
+                    <div class="field-label">Bio</div>
+                    <div class="field-value @(string.IsNullOrEmpty(currentUser?.Bio) ? "empty" : "")">
+                        @(string.IsNullOrEmpty(currentUser?.Bio) ? "//whatever this is. i just tried to add something more." : currentUser.Bio)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private User? currentUser;
+    private string currentRole = string.Empty;
+    [Inject] private IWebHostEnvironment Env { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var userId = UserSessionService.CurrentUserId;
+            if (userId.HasValue && userId.Value > 0)
+            {
+                currentUser = await _context.Users.FindAsync(userId.Value);
+                currentRole = currentUser?.Role ?? string.Empty;
+                Console.WriteLine($"Profile: Loaded user {userId.Value} - {currentUser?.Name}");
+            }
+            else
+            {
+                Console.WriteLine("Profile: User not logged in");
+                Navigation.NavigateTo("/login", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading profile: {ex.Message}");
+        }
+    }
+
+    private string GetQuizHistoryLink()
+    {
+        var role = currentUser?.Role ?? "";
+        return role == "Teacher" ? "/view-quizzes" : "/view-quiz-history";
+    }
+
+    private string GetNavLinkClass(string target)
+    {
+        var relativeUri = Navigation.ToBaseRelativePath(Navigation.Uri).TrimEnd('/');
+        target = target.Trim('/');
+        return string.Equals(relativeUri, target, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    }
+    
+    private async Task OnAvatarChanged(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            if (currentUser == null) return;
+            var file = e.File;
+            if (file == null) return;
+
+            var webRoot = Env.WebRootPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot");
+            var uploadDir = Path.Combine(webRoot, "uploads", "avatars");
+            if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
+
+            var ext = Path.GetExtension(file.Name);
+            if (string.IsNullOrWhiteSpace(ext)) ext = ".png";
+            var allowed = new[] { ".png", ".jpg", ".jpeg", ".webp" };
+            if (!allowed.Contains(ext.ToLower())) ext = ".png";
+
+            var filename = $"user_{currentUser.Id}{ext}";
+            var savePath = Path.Combine(uploadDir, filename);
+            using (var fs = new FileStream(savePath, FileMode.Create))
+            {
+                await file.OpenReadStream(5_000_000).CopyToAsync(fs);
+            }
+
+            // store relative path for serving from wwwroot
+            currentUser.PhotoPath = $"/uploads/avatars/{filename}";
+            await _context.SaveChangesAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Avatar upload failed: {ex.Message}");
+        }
+    }
+}
+

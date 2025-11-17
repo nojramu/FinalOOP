@@ -1,0 +1,539 @@
+
+@page "/teacherdashboard"
+@using SmartQuiz.Services
+@inject NavigationManager Navigation
+@inject UserSessionService UserSessionService
+@inject SmartQuiz.Data.AppDbContext _context
+@rendermode InteractiveServer
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+/* NAVBAR */
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+    overflow: hidden;
+}
+
+.profile-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.nav-links a {
+    margin-left: 30px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.nav-links a:hover {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.logout {
+    color: #e74c3c !important;
+    font-weight: 600;
+}
+
+.logout:hover {
+    background: #e74c3c !important;
+    color: white !important;
+}
+
+/* MAIN LAYOUT */
+.main-content {
+    padding: 50px 40px;
+    min-height: calc(100vh - 90px);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Dashboard Layout */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255,255,255,0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #61c2a2, #48a583, #667eea);
+    border-radius: 20px 20px 0 0;
+}
+
+.card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.card h3::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 2px;
+}
+
+/* Big Card - Calendar */
+.big-card {
+    grid-column: 1 / -1;
+    min-height: 400px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+    cursor: default;
+}
+
+.big-card:hover {
+    transform: translateY(0) scale(1);
+}
+
+.big-card h3::before {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+/* Calendar Styles */
+.calendar {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.calendar-nav-btn {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.calendar-nav-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(97, 194, 162, 0.4);
+}
+
+.calendar-month {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.weekday {
+    text-align: center;
+    font-weight: 600;
+    color: #667eea;
+    font-size: 0.9rem;
+    padding: 10px;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    color: #333;
+    background: #f8f9fa;
+    border: 2px solid transparent;
+}
+
+.calendar-day:hover {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(97, 194, 162, 0.3);
+}
+
+.calendar-day.other-month {
+    color: #bbb;
+    background: #f0f0f0;
+}
+
+.calendar-day.today {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    border: 2px solid #fff;
+}
+
+.calendar-day.selected {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    font-weight: 700;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.dashboard-header h1 {
+    font-weight: 800;
+    font-size: 3rem;
+    margin-bottom: 15px;
+    background: linear-gradient(135deg, #ffffffff, #ffffffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.dashboard-header p {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.1rem;
+    font-weight: 300;
+}
+
+/* Card Icons */
+.card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    opacity: 0.8;
+}
+
+.average-scores::before { content: "📊"; }
+.leaderboard::before { content: "🏆"; }
+.completion::before { content: "✅"; }
+.calendar-icon::before { content: "📅"; }
+
+/* Responsive Design */
+@@media (max-width: 768px) {
+    .main-content {
+        padding: 30px 20px;
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .navbar {
+        padding: 10px 20px;
+    }
+    
+    .nav-links a {
+        margin-left: 15px;
+        padding: 6px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 2.2rem;
+    }
+
+    .calendar-day {
+        font-size: 0.85rem;
+    }
+
+    .calendar-month {
+        font-size: 1.2rem;
+    }
+}
+
+/* Animation */
+@@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.card:nth-child(1) { animation-delay: 0.1s; }
+.card:nth-child(2) { animation-delay: 0.2s; }
+.card:nth-child(3) { animation-delay: 0.3s; }
+.card:nth-child(4) { animation-delay: 0.4s; }
+</style>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-left">
+        @if (!string.IsNullOrWhiteSpace(currentUserPhoto))
+        {
+            <img src="@currentUserPhoto" alt="avatar" class="profile-photo" />
+        }
+        else
+        {
+            <div class="profile-icon">👤</div>
+        }
+        <a href="/profile" style="color: #2c3e50; font-weight: 600; font-size: 1.1rem; text-decoration: none;">Teacher Profile</a>
+    </div>
+
+    <div class="nav-links">
+        <a href="/teacherdashboard" style="font-weight:bold; background: linear-gradient(135deg, #61c2a2, #48a583); color: white;">Dashboard</a>
+        <a href="/view-quizzes">View Quizzes</a>
+        <a href="/leaderboard">View Leaderboard</a>
+        <a href="/createquiz">Create A Quiz</a>
+        <a href="/" class="logout">Log out</a>
+    </div>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div class="main-content">
+    <div class="dashboard-header">
+        <h1>Teacher Dashboard</h1>
+        <p>Monitor your students' progress and quiz performance with real-time analytics</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- AVERAGE SCORES -->
+        <div class="card average-scores" @onclick="@(() => Navigation.NavigateTo("/view-quizzes"))">
+            <div class="card-icon"></div>
+            <h3>Average Scores</h3>
+            <p style="color: #7f8c8d; margin: 0;">Track student performance across all quizzes with detailed analytics and insights.</p>
+        </div>
+
+        <!-- STUDENTS' LEADERBOARD -->
+        <div class="card leaderboard" @onclick="@(() => Navigation.NavigateTo("/leaderboard"))">
+            <div class="card-icon"></div>
+            <h3>Students' Leaderboard</h3>
+            <p style="color: #7f8c8d; margin: 0;">View top-performing students and encourage healthy competition in your classroom.</p>
+        </div>
+
+        <!-- QUIZ COMPLETION -->
+        <div class="card completion" @onclick="@(() => Navigation.NavigateTo("/view-quizzes"))">
+            <div class="card-icon"></div>
+            <h3>Quiz Completion</h3>
+            <p style="color: #7f8c8d; margin: 0;">Monitor completion rates and identify students who may need additional support.</p>
+        </div>
+
+        <!-- CALENDAR -->
+        <div class="card big-card calendar-icon">
+            <div class="card-icon"></div>
+            <h3>Calendar</h3>
+            <div class="calendar">
+                <div class="calendar-header">
+                    <button class="calendar-nav-btn" @onclick="PreviousMonth">‹</button>
+                    <div class="calendar-month">@currentDate.ToString("MMMM yyyy")</div>
+                    <button class="calendar-nav-btn" @onclick="NextMonth">›</button>
+                </div>
+                <div class="calendar-weekdays">
+                    <div class="weekday">Sun</div>
+                    <div class="weekday">Mon</div>
+                    <div class="weekday">Tue</div>
+                    <div class="weekday">Wed</div>
+                    <div class="weekday">Thu</div>
+                    <div class="weekday">Fri</div>
+                    <div class="weekday">Sat</div>
+                </div>
+                <div class="calendar-days">
+                    @foreach (var day in calendarDays)
+                    {
+                        var dayClass = "calendar-day";
+                        if (day.IsOtherMonth) dayClass += " other-month";
+                        if (day.IsToday) dayClass += " today";
+                        if (day.Date.Date == selectedDate.Date) dayClass += " selected";
+
+                        <div class="@dayClass" @onclick="@(() => SelectDate(day.Date))">
+                            @day.DayNumber
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string currentUserPhoto = string.Empty;
+    private DateTime currentDate = DateTime.Now;
+    private DateTime selectedDate = DateTime.Now;
+    private List<CalendarDay> calendarDays = new();
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var teacherId = UserSessionService.CurrentUserId ?? 0;
+            if (teacherId > 0)
+            {
+                try
+                {
+                    var user = _context.Users.FirstOrDefault(u => u.Id == teacherId);
+                    currentUserPhoto = user?.PhotoPath ?? string.Empty;
+                }
+                catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading teacher photo: {ex.Message}");
+        }
+        
+        BuildCalendar();
+    }
+
+    private void BuildCalendar()
+    {
+        calendarDays.Clear();
+        
+        var firstDayOfMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
+        var lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
+        var startDate = firstDayOfMonth.AddDays(-(int)firstDayOfMonth.DayOfWeek);
+        
+        var today = DateTime.Today;
+        var currentMonth = currentDate.Month;
+        
+        for (int i = 0; i < 42; i++) // 6 weeks * 7 days
+        {
+            var date = startDate.AddDays(i);
+            calendarDays.Add(new CalendarDay
+            {
+                Date = date,
+                DayNumber = date.Day,
+                IsOtherMonth = date.Month != currentMonth,
+                IsToday = date.Date == today.Date
+            });
+        }
+    }
+
+    private void PreviousMonth()
+    {
+        currentDate = currentDate.AddMonths(-1);
+        BuildCalendar();
+    }
+
+    private void NextMonth()
+    {
+        currentDate = currentDate.AddMonths(1);
+        BuildCalendar();
+    }
+
+    private void SelectDate(DateTime date)
+    {
+        selectedDate = date.Date;
+        if (date.Month != currentDate.Month)
+        {
+            currentDate = new DateTime(date.Year, date.Month, 1);
+            BuildCalendar();
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
+    private class CalendarDay
+    {
+        public DateTime Date { get; set; }
+        public int DayNumber { get; set; }
+        public bool IsOtherMonth { get; set; }
+        public bool IsToday { get; set; }
+    }
+}
+
+

@@ -1,0 +1,539 @@
+@page "/leaderboard"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@using System.Linq
+@inject NavigationManager Navigation
+@inject QuizService QuizService
+@inject QuizAttemptService QuizAttemptService
+@inject UserSessionService UserSessionService
+@inject SmartQuiz.Data.AppDbContext _context
+@rendermode InteractiveServer
+
+<PageTitle>Leaderboard</PageTitle>
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+/* NAVBAR */
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+    overflow: hidden;
+}
+
+.profile-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.nav-links a {
+    margin-left: 30px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.nav-links a:hover {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.logout {
+    color: #e74c3c !important;
+    font-weight: 600;
+}
+
+.logout:hover {
+    background: #e74c3c !important;
+    color: white !important;
+}
+
+/* MAIN CONTENT */
+.leaderboard-container {
+    padding: 50px 40px;
+    min-height: calc(100vh - 90px);
+}
+
+.leaderboard-container h3 {
+    margin-bottom: 30px;
+    font-weight: 700;
+    font-size: 2rem;
+    color: white;
+}
+
+/* QUIZ GRID */
+.quiz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+/* QUIZ CARD */
+.quiz-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.2);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.quiz-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #61c2a2, #48a583, #667eea);
+    border-radius: 20px 20px 0 0;
+}
+
+.quiz-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.quiz-card h5 {
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quiz-card h5::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    border-radius: 2px;
+}
+
+.quiz-card p {
+    color: #7f8c8d;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.quiz-card p:last-child {
+    font-size: 0.85rem;
+    color: #61c2a2;
+    font-weight: 600;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.quiz-card-footer {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.quiz-card-btn {
+    flex: 1;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.quiz-card-btn-primary {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.quiz-card-btn-primary:hover {
+    background: linear-gradient(135deg, #48a583, #3d8f6f);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(97, 194, 162, 0.4);
+}
+
+.quiz-card-btn-secondary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.quiz-card-btn-secondary:hover {
+    background: linear-gradient(135deg, #764ba2, #5a3a7a);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.quiz-stats {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin-top: 8px;
+}
+
+.mini-leaderboard {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    background: white;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.leaderboard-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.rank-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.rank-1 {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: white;
+}
+
+.rank-2 {
+    background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+    color: white;
+}
+
+.rank-3 {
+    background: linear-gradient(135deg, #CD7F32, #B87333);
+    color: white;
+}
+
+.rank-0 {
+    background: #e0e0e0;
+    color: #666;
+}
+
+.student-info {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.student-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+}
+
+.student-score {
+    font-weight: 700;
+    color: #61c2a2;
+    font-size: 0.95rem;
+}
+
+/* Responsive Design */
+@@media (max-width: 768px) {
+    .leaderboard-container {
+        padding: 30px 20px;
+    }
+    
+    .navbar {
+        padding: 10px 20px;
+    }
+    
+    .nav-links a {
+        margin-left: 15px;
+        padding: 6px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .quiz-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .leaderboard-container h3 {
+        font-size: 1.5rem;
+    }
+}
+
+/* Animation */
+@@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.quiz-card:nth-child(1) { animation-delay: 0.1s; }
+.quiz-card:nth-child(2) { animation-delay: 0.2s; }
+.quiz-card:nth-child(3) { animation-delay: 0.3s; }
+.quiz-card:nth-child(4) { animation-delay: 0.4s; }
+</style>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-left">
+        @if (!string.IsNullOrWhiteSpace(currentUserPhoto))
+        {
+            <img src="@currentUserPhoto" alt="avatar" class="profile-photo" />
+        }
+        else
+        {
+            <div class="profile-icon">👤</div>
+        }
+        <a href="/profile" style="color: #2c3e50; font-weight: 600; font-size: 1.1rem; text-decoration: none;">Teacher Profile</a>
+    </div>
+
+    <div class="nav-links">
+        <a href="/teacherdashboard">Dashboard</a>
+        <a href="/view-quizzes">View Quizzes</a>
+        <a href="/leaderboard" style="font-weight:bold; background: linear-gradient(135deg, #61c2a2, #48a583); color: white;">View Leaderboard</a>
+        <a href="/createquiz">Create A Quiz</a>
+        <a href="/" class="logout">Log out</a>
+    </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="leaderboard-container">
+    <h3>📊 Quiz Leaderboards</h3>
+    @if (loading)
+    {
+        <div style="color: white; text-align: center; padding: 50px;">Loading quizzes...</div>
+    }
+    else if (quizzes.Count == 0)
+    {
+        <div style="color: white; text-align: center; padding: 50px;">
+            <p>No published quizzes found.</p>
+            <p style="font-size: 0.9rem; opacity: 0.9;">Publish a quiz to see it in the leaderboard.</p>
+        </div>
+    }
+    else
+    {
+        <div class="quiz-grid">
+            @foreach (var quiz in quizzes)
+            {
+                var topStudents = GetTopStudents(quiz.Id, 5);
+                <div class="quiz-card">
+                    <h5>@quiz.Title</h5>
+                    <p>@quiz.Description</p>
+                    <div class="quiz-stats">
+                        <strong>@GetAttemptCount(quiz.Id)</strong> student(s) have taken this quiz
+                    </div>
+                    
+                    @if (topStudents.Any())
+                    {
+                        <div class="mini-leaderboard">
+                            <h6 style="margin: 15px 0 10px 0; font-size: 1rem; color: #2c3e50; font-weight: 600;">🏆 Top Performers</h6>
+                            <div class="leaderboard-list">
+                                @for (int i = 0; i < topStudents.Count; i++)
+                                {
+                                    var student = topStudents[i];
+                                    var rank = i + 1;
+                                    <div class="leaderboard-item">
+                                        <div class="rank-badge rank-@(rank <= 3 ? rank : 0)">@rank</div>
+                                        <div class="student-info">
+                                            <div class="student-name">@student.Name</div>
+                                            <div class="student-score">@FormatScore(student.Score)</div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="no-attempts" style="padding: 15px; text-align: center; color: #95a5a6; font-style: italic;">
+                            No attempts yet
+                        </div>
+                    }
+                    
+                    <div class="quiz-card-footer">
+                        <button class="quiz-card-btn quiz-card-btn-primary" @onclick="() => OpenLeaderboard(quiz.Id)" @onclick:stopPropagation="true">
+                            📊 View Full Leaderboard
+                        </button>
+                        <button class="quiz-card-btn quiz-card-btn-secondary" @onclick="() => ViewQuizTakers(quiz.Id)" @onclick:stopPropagation="true">
+                            👥 Quiz Takers
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Quiz> quizzes = new();
+    private bool loading = true;
+    private string currentUserPhoto = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            // Load current user's photo
+            var teacherId = UserSessionService.CurrentUserId ?? 0;
+            if (teacherId > 0)
+            {
+                try
+                {
+                    var user = _context.Users.FirstOrDefault(u => u.Id == teacherId);
+                    currentUserPhoto = user?.PhotoPath ?? string.Empty;
+                }
+                catch { }
+            }
+
+            // Get all published quizzes
+            quizzes = QuizService.GetPublishedQuizzes();
+            Console.WriteLine($"ViewLeaderboard: Loaded {quizzes.Count} published quizzes");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading quizzes: {ex.Message}");
+            quizzes = new List<Quiz>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OpenLeaderboard(int quizId)
+    {
+        Console.WriteLine($"Navigating to leaderboard for quiz {quizId}");
+        Navigation.NavigateTo($"/leaderboard/{quizId}");
+    }
+
+    private void ViewQuizTakers(int quizId)
+    {
+        Console.WriteLine($"Navigating to quiz takers for quiz {quizId}");
+        Navigation.NavigateTo($"/quiz-takers/{quizId}");
+    }
+
+    private int GetAttemptCount(int quizId)
+    {
+        try
+        {
+            var attempts = QuizAttemptService.GetQuizAttempts(quizId);
+            return attempts.Count;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private List<StudentScore> GetTopStudents(int quizId, int topCount)
+    {
+        try
+        {
+            var attempts = QuizAttemptService.GetQuizAttempts(quizId);
+            return attempts
+                .OrderByDescending(a => a.Score)
+                .ThenByDescending(a => a.CorrectAnswers)
+                .Take(topCount)
+                .Select(a => new StudentScore
+                {
+                    Name = a.StudentName ?? "Unknown Student",
+                    Score = a.Score,
+                    CorrectAnswers = a.CorrectAnswers,
+                    TotalQuestions = a.TotalQuestions
+                })
+                .ToList();
+        }
+        catch
+        {
+            return new List<StudentScore>();
+        }
+    }
+
+    private string FormatScore(double score)
+    {
+        return $"{score:F1}%";
+    }
+
+    private class StudentScore
+    {
+        public string Name { get; set; } = "";
+        public double Score { get; set; }
+        public int CorrectAnswers { get; set; }
+        public int TotalQuestions { get; set; }
+    }
+}

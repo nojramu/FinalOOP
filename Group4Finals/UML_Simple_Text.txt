@@ -1,0 +1,167 @@
+================================================================================
+                    SMARTQUIZ SYSTEM - UML CLASS DIAGRAM
+                    Object-Oriented Programming Structure
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ABSTRACT BASE CLASSES                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌──────────────────────┐
+                    │    BaseEntity        │ ◄─── ABSTRACTION
+                    │  (abstract class)    │
+                    ├──────────────────────┤
+                    │ +int Id             │
+                    │ +Validate() : bool   │ ◄─── Abstract method
+                    │ +GetDisplayName()    │ ◄─── Virtual method
+                    └──────────────────────┘
+                              ▲
+                              │ INHERITANCE
+                    ┌─────────┴─────────┐
+                    │                   │
+            ┌───────┴───────┐   ┌──────┴──────┐
+            │     Quiz      │   │  Question   │
+            ├───────────────┤   ├─────────────┤
+            │ -_title       │   │ -_questionText│
+            │ -_description │   │ -_options   │
+            │ +Title        │   │ +QuestionText│
+            │ +Validate()   │   │ +Validate() │
+            │ +GetDisplayName()││ +GetDisplayName()│
+            └───────────────┘   └─────────────┘
+                                         ▲
+                                         │ INHERITANCE
+                    ┌────────────────────┼────────────────────┐
+                    │                    │                    │
+        ┌───────────┴────────┐  ┌───────┴───────┐  ┌────────┴──────────┐
+        │MultipleChoiceQuestion│ │TrueFalseQuestion│ │IdentificationQuestion│
+        ├─────────────────────┤ ├─────────────────┤ ├───────────────────┤
+        │ -_correctAnswerIndex│ │ -_correctAnswer │ │ -_acceptableAnswers│
+        │ +ValidateAnswer()   │ │ +ValidateAnswer()│ │ +ValidateAnswer() │
+        └─────────────────────┘ └─────────────────┘ └───────────────────┘
+                    │                    │                    │
+                    └────────────────────┼────────────────────┘
+                                         │
+                                         ▼
+                            ┌──────────────────────┐
+                            │   IQuestionType      │ ◄─── INTERFACE
+                            │    (interface)       │      (POLYMORPHISM)
+                            ├──────────────────────┤
+                            │ +ValidateAnswer()    │
+                            │ +GetCorrectAnswerDisplay()│
+                            │ +GetQuestionTypeName()│
+                            └──────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              INTERFACES                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────────┐      ┌──────────────────────┐      ┌──────────────────┐
+    │  IQuizService    │      │IQuizAttemptService   │      │INotificationService│
+    │   (interface)    │      │    (interface)       │      │   (interface)    │
+    ├──────────────────┤      ├──────────────────────┤      ├──────────────────┤
+    │ +AddQuiz()       │      │ +SaveQuizAttempt()   │      │ +GetStudentNotifications()│
+    │ +GetQuizById()   │      │ +GetQuizAttempts()   │      │ +CreateNotification()│
+    │ +UpdateQuiz()    │      │ +HasStudentTakenQuiz()│     │ +DeleteNotification()│
+    └──────────────────┘      └──────────────────────┘      └──────────────────┘
+            ▲                          ▲                              ▲
+            │                          │                              │
+            │ IMPLEMENTS                │ IMPLEMENTS                   │ IMPLEMENTS
+            │                          │                              │
+    ┌───────┴────────┐        ┌────────┴────────┐            ┌────────┴────────┐
+    │  QuizService   │        │QuizAttemptService│          │NotificationService│
+    ├────────────────┤        ├──────────────────┤            ├──────────────────┤
+    │ -_dbContextFactory│     │ -_dbContextFactory│          │ -_dbContextFactory│
+    │ +AddQuiz()     │        │ +SaveQuizAttempt()│          │ +GetStudentNotifications()│
+    │ +GetQuizById() │        │ +GetQuizAttempts()│          │ +CreateNotification()│
+    └────────────────┘        └──────────────────┘          └──────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ASSOCIATIONS                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    Quiz (1) ──────<*>────── Question
+         │
+         │ contains
+         │
+         ▼
+    QuizAttempt (1) ──────<*>────── StudentAnswer
+         │
+         │ references
+         │
+         ▼
+    Notification ──────> Quiz (optional)
+    Notification ──────> QuizAttempt (optional)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          FACTORY PATTERN                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌──────────────────────┐
+                    │  QuestionFactory     │ ◄─── POLYMORPHISM
+                    │    (static class)    │      ENCAPSULATION
+                    ├──────────────────────┤
+                    │ +CreateQuestionType()│ ◄─── Returns IQuestionType
+                    │ -CreateMultipleChoice()│
+                    │ -CreateTrueFalse()   │
+                    │ -CreateIdentification()│
+                    └──────────────────────┘
+                              │
+                              │ creates
+                              ▼
+                    ┌──────────────────────┐
+                    │   IQuestionType     │
+                    │  (any implementation)│
+                    └──────────────────────┘
+
+================================================================================
+                          OOP CONCEPTS DEMONSTRATED
+================================================================================
+
+┌─────────────────────┬──────────────────────────────────────────────────────┐
+│ CONCEPT             │ WHERE IT'S DEMONSTRATED                              │
+├─────────────────────┼──────────────────────────────────────────────────────┤
+│ ENCAPSULATION       │ • Private fields (_title, _options, _correctAnswer)  │
+│                     │ • Public properties with controlled access          │
+│                     │ • Validation in setters/Validate() methods          │
+│                     │ • Private methods in classes                        │
+├─────────────────────┼──────────────────────────────────────────────────────┤
+│ INHERITANCE         │ • BaseEntity → Quiz, Question                       │
+│                     │ • Question → MultipleChoiceQuestion, etc.            │
+│                     │ • BaseService → Service classes (optional)           │
+├─────────────────────┼──────────────────────────────────────────────────────┤
+│ POLYMORPHISM        │ • IQuestionType interface with multiple             │
+│                     │   implementations                                    │
+│                     │ • Method overriding (GetDisplayName, Validate)      │
+│                     │ • Factory pattern returns interface                  │
+├─────────────────────┼──────────────────────────────────────────────────────┤
+│ ABSTRACTION         │ • BaseEntity abstract class                         │
+│                     │ • IQuestionType, IQuizService interfaces             │
+│                     │ • Abstract methods force implementation              │
+│                     │ • Virtual methods allow overriding                  │
+├─────────────────────┼──────────────────────────────────────────────────────┤
+│ COHESION            │ • Each class has single, focused responsibility     │
+│                     │ • Related methods grouped together                   │
+│                     │ • Easy to understand and maintain                   │
+├─────────────────────┼──────────────────────────────────────────────────────┤
+│ LOW COUPLING        │ • Dependencies on interfaces, not concrete classes  │
+│                     │ • Services depend on DbContextFactory abstraction    │
+│                     │ • Easy to test with mocks                            │
+│                     │ • Flexible and extensible                           │
+└─────────────────────┴──────────────────────────────────────────────────────┘
+
+================================================================================
+                          LEGEND
+================================================================================
+
++ = Public member
+- = Private member
+# = Protected member
+▲ = Inheritance (is-a relationship)
+│ = Implements (interface implementation)
+─ = Association (has-a relationship)
+<*> = One-to-many relationship
+(1) = One
+(*) = Many
+
+================================================================================
+

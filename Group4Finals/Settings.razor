@@ -1,0 +1,537 @@
+@page "/settings"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager Navigation
+@inject SmartQuiz.Data.AppDbContext _context
+@inject UserSessionService UserSessionService
+@rendermode InteractiveServer
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+/* HEADER */
+.header {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-square {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: #61c2a2;
+}
+
+.logo-text {
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+/* MAIN LAYOUT */
+.main-layout {
+    display: flex;
+    min-height: calc(100vh - 80px);
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 250px;
+    background: white;
+    padding: 30px 0;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-item {
+    margin: 0;
+    padding: 0;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 15px 30px;
+    color: #61c2a2;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    cursor: pointer;
+}
+
+.sidebar-link:hover {
+    background: rgba(97, 194, 162, 0.1);
+}
+
+.sidebar-link.active {
+    background: #61c2a2;
+    color: white;
+}
+
+.sidebar-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #48a583;
+}
+
+.sidebar-link-icon {
+    margin-right: 12px;
+    font-size: 1.1rem;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 10px 30px;
+}
+
+.sidebar-footer {
+    padding: 20px 30px;
+    font-size: 0.75rem;
+    color: #999;
+    text-align: center;
+}
+
+/* MAIN CONTENT */
+.main-content {
+    flex: 1;
+    padding: 40px;
+    background: #f5f5f5;
+}
+
+.settings-container {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.settings-container h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+
+.settings-section {
+    margin-bottom: 40px;
+    padding-bottom: 30px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+}
+
+.settings-section h2 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.settings-field {
+    margin-bottom: 20px;
+}
+
+.settings-field label {
+    display: block;
+    font-weight: 500;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.settings-field input,
+.settings-field textarea {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+    font-family: 'Poppins', sans-serif;
+}
+
+.settings-field input:focus,
+.settings-field textarea:focus {
+    outline: none;
+    border-color: #61c2a2;
+}
+
+.settings-field textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.save-btn {
+    background: linear-gradient(135deg, #61c2a2, #48a583);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(97, 194, 162, 0.3);
+}
+
+.cancel-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.cancel-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    background: #5a6268;
+}
+
+.message {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+</style>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="logo-container">
+        <div class="logo-square">S</div>
+        <div class="logo-text">smartquiz account</div>
+    </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <ul class="sidebar-nav">
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="/profile">
+                    <span class="sidebar-link-icon">👤</span>
+                    Profile
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="@GetQuizHistoryLink()">
+                    <span class="sidebar-link-icon">📚</span>
+                    Quiz History
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link active" href="/settings">
+                    <span class="sidebar-link-icon">⚙️</span>
+                    Settings
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <div class="sidebar-divider"></div>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="/about">
+                    <span class="sidebar-link-icon">ℹ️</span>
+                    About
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="/" style="color: #e74c3c;">
+                    <span class="sidebar-link-icon">🚪</span>
+                    Log Out
+                </a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            All Rights Reserved. YEYEYE.
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <div class="settings-container">
+            <h1>Settings</h1>
+            
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="message @(isSuccess ? "success" : "error")">@message</div>
+            }
+
+            <div class="settings-section">
+                <h2>Account Information</h2>
+                <div class="settings-field">
+                    <label>Username</label>
+                    <input type="text" @bind="editName" placeholder="Enter username" />
+                </div>
+                <div class="settings-field">
+                    <label>Email</label>
+                    <input type="email" @bind="editEmail" placeholder="Enter email" />
+                </div>
+                <div class="settings-field">
+                    <label>Bio</label>
+                    <textarea @bind="editBio" placeholder="Tell us about yourself..." rows="5"></textarea>
+                </div>
+                <button class="save-btn" @onclick="SaveAccountInfo">Save Changes</button>
+            </div>
+
+            <div class="settings-section">
+                <h2>Alternative Password</h2>
+                <p style="color: #666; margin-bottom: 20px; font-size: 0.9rem;">
+                    Set an alternative password that you can use for verification if you forget your main password.
+                </p>
+                <div class="settings-field">
+                    <label>Alternative Password</label>
+                    <input type="password" @bind="alternativePassword" placeholder="Enter alternative password" />
+                </div>
+                <div class="settings-field">
+                    <label>Confirm Alternative Password</label>
+                    <input type="password" @bind="confirmAlternativePassword" placeholder="Confirm alternative password" />
+                </div>
+                <button class="save-btn" @onclick="SaveAlternativePassword">Save Alternative Password</button>
+            </div>
+
+            <div class="settings-section">
+                <h2>Change Password</h2>
+                <div class="settings-field">
+                    <label>Current Password</label>
+                    <input type="password" @bind="currentPassword" placeholder="Enter current password" />
+                </div>
+                <div class="settings-field">
+                    <label>New Password</label>
+                    <input type="password" @bind="newPassword" placeholder="Enter new password" />
+                </div>
+                <div class="settings-field">
+                    <label>Confirm New Password</label>
+                    <input type="password" @bind="confirmPassword" placeholder="Confirm new password" />
+                </div>
+                <button class="save-btn" @onclick="ChangePassword">Change Password</button>
+            </div>
+
+            <!-- Forgot Password section removed -->
+        </div>
+    </div>
+</div>
+
+@code {
+    private User? currentUser;
+    private string editName = string.Empty;
+    private string editEmail = string.Empty;
+    private string editBio = string.Empty;
+    private string currentPassword = string.Empty;
+    private string newPassword = string.Empty;
+    private string confirmPassword = string.Empty;
+    private string message = string.Empty;
+    private bool isSuccess = false;
+    
+    // Alternative Password fields
+    private string alternativePassword = string.Empty;
+    private string confirmAlternativePassword = string.Empty;
+    
+    // Removed: Forgot Password fields and logic
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var userId = UserSessionService.CurrentUserId;
+            if (userId.HasValue && userId.Value > 0)
+            {
+                currentUser = await _context.Users.FindAsync(userId.Value);
+                if (currentUser != null)
+                {
+                    editName = currentUser.Name ?? "";
+                    editEmail = currentUser.Email ?? "";
+                    editBio = currentUser.Bio ?? "";
+                    // Don't load alternative password for security reasons
+                }
+            }
+            else
+            {
+                Navigation.NavigateTo("/login", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading settings: {ex.Message}");
+        }
+    }
+
+    private string GetQuizHistoryLink()
+    {
+        var role = currentUser?.Role ?? "";
+        return role == "Teacher" ? "/view-quizzes" : "/view-quiz-history";
+    }
+
+    private async Task SaveAccountInfo()
+    {
+        message = string.Empty;
+        if (currentUser == null) return;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(editName))
+            {
+                message = "Username cannot be empty";
+                isSuccess = false;
+                return;
+            }
+
+            currentUser.Name = editName;
+            currentUser.Email = editEmail;
+            currentUser.Bio = editBio;
+            await _context.SaveChangesAsync();
+
+            message = "Account information updated successfully!";
+            isSuccess = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error updating account: {ex.Message}";
+            isSuccess = false;
+        }
+    }
+
+    private async Task ChangePassword()
+    {
+        message = string.Empty;
+        if (currentUser == null) return;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(currentPassword) || currentPassword != currentUser.Password)
+            {
+                message = "Current password is incorrect";
+                isSuccess = false;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 4)
+            {
+                message = "New password must be at least 4 characters";
+                isSuccess = false;
+                return;
+            }
+
+            if (newPassword != confirmPassword)
+            {
+                message = "New passwords do not match";
+                isSuccess = false;
+                return;
+            }
+
+            currentUser.Password = newPassword;
+            await _context.SaveChangesAsync();
+
+            message = "Password changed successfully!";
+            isSuccess = true;
+            currentPassword = string.Empty;
+            newPassword = string.Empty;
+            confirmPassword = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error changing password: {ex.Message}";
+            isSuccess = false;
+        }
+    }
+
+    private async Task SaveAlternativePassword()
+    {
+        message = string.Empty;
+        if (currentUser == null) return;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(alternativePassword) || alternativePassword.Length < 4)
+            {
+                message = "Alternative password must be at least 4 characters";
+                isSuccess = false;
+                return;
+            }
+
+            if (alternativePassword != confirmAlternativePassword)
+            {
+                message = "Alternative passwords do not match";
+                isSuccess = false;
+                return;
+            }
+
+            // Save the alternative password
+            currentUser.AlternativePassword = alternativePassword;
+            await _context.SaveChangesAsync();
+
+            message = "Alternative password saved successfully!";
+            isSuccess = true;
+            alternativePassword = string.Empty;
+            confirmAlternativePassword = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error saving alternative password: {ex.Message}";
+            isSuccess = false;
+        }
+    }
+}
+

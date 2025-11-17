@@ -1,0 +1,851 @@
+@page "/take-quiz/{quizId:int}"
+@page "/quiz-mode/{quizId:int}"
+@page "/take-quiz-code/{quizCode}"
+@using SmartQuiz.Services
+@using SmartQuiz.Models
+@inject NavigationManager Navigation
+@inject QuizService QuizService
+@inject QuizAttemptService QuizAttemptService
+@inject UserSessionService UserSessionService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Quiz Mode - @(quiz?.Title ?? "Loading...")</PageTitle>
+
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #61c2a2;
+    min-height: 100vh;
+}
+
+.quiz-mode-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+    min-height: 100vh;
+}
+
+.quiz-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.quiz-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.quiz-description {
+    color: #7f8c8d;
+    font-size: 1rem;
+    margin-bottom: 15px;
+}
+
+.quiz-info {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.timer-container {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+    align-items: center;
+}
+
+.question-timer-display {
+    background: #48a583;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.timer-display {
+    background: #61c2a2;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.timer-warning {
+    background: #e74c3c;
+    animation: pulse 1s infinite;
+}
+
+@@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.question-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.question-number {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #61c2a2;
+}
+
+.question-type-badge {
+    background: #61c2a2;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.question-text {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 25px;
+    line-height: 1.6;
+}
+
+.question-timer {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    color: #856404;
+    padding: 8px 15px;
+    border-radius: 15px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.options-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.option-item {
+    background: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 15px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.option-item:hover {
+    background: #e9ecef;
+    border-color: #61c2a2;
+    transform: translateX(5px);
+}
+
+.option-item.selected {
+    background: #61c2a2;
+    color: white;
+    border-color: #61c2a2;
+}
+
+.option-radio {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #61c2a2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.option-radio.selected::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: white;
+    border-radius: 50%;
+}
+
+.option-text {
+    flex: 1;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.text-input {
+    width: 100%;
+    padding: 15px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.text-input:focus {
+    outline: none;
+    border-color: #61c2a2;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.2);
+}
+
+.navigation-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Poppins', sans-serif;
+}
+
+.btn-primary {
+    background: #61c2a2;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #48a583;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(97, 194, 162, 0.4);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.submit-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    margin-top: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    text-align: center;
+}
+
+.submit-btn {
+    background: #61c2a2;
+    color: white;
+    padding: 15px 50px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(97, 194, 162, 0.3);
+}
+
+.submit-btn:hover {
+    background: #48a583;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(97, 194, 162, 0.4);
+}
+
+.loading {
+    text-align: center;
+    color: white;
+    font-size: 1.5rem;
+    padding: 50px;
+}
+
+.error {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    text-align: center;
+    color: #e74c3c;
+    font-size: 1.2rem;
+}
+
+.progress-bar {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.progress-text {
+    text-align: center;
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 8px;
+    background: #61c2a2;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+@@media (max-width: 768px) {
+    .quiz-mode-container {
+        padding: 20px 15px;
+    }
+    
+    .quiz-title {
+        font-size: 1.5rem;
+    }
+    
+    .question-text {
+        font-size: 1.1rem;
+    }
+    
+    .navigation-buttons {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+}
+</style>
+
+@if (loading)
+{
+    <div class="loading">
+        <p>Loading quiz...</p>
+    </div>
+}
+else if (quiz == null)
+{
+    <div class="error">
+        <p>Quiz not found!</p>
+        <button class="btn btn-secondary" @onclick="GoBack">Go Back</button>
+    </div>
+}
+else
+{
+    <div class="quiz-mode-container">
+        <!-- Quiz Header -->
+        <div class="quiz-header">
+            <h1 class="quiz-title">@quiz.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(quiz.Description))
+            {
+                <p class="quiz-description">@quiz.Description</p>
+            }
+            
+            <div class="quiz-info">
+                <div class="info-item">
+                    <span>📝</span>
+                    <span>@(quiz.Questions?.Count ?? 0) Questions</span>
+                </div>
+                <div class="info-item">
+                    <span>⏱️</span>
+                    <span>@quiz.TotalTimeLimit minutes</span>
+                </div>
+            </div>
+            
+            <!-- Timer Display - Aligned -->
+            <div class="timer-container">
+                @if (quizTimer > 0)
+                {
+                    <div class="timer-display @(quizTimer <= 60 ? "timer-warning" : "")">
+                        <span>⏰ Total Quiz Time:</span>
+                        <span>@FormatTime(quizTimer)</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-text">
+                Question @(currentQuestionIndex + 1) of @(quiz.Questions?.Count ?? 0)
+            </div>
+            <div class="progress-fill" style="width: @((currentQuestionIndex + 1) * 100.0 / (quiz.Questions?.Count ?? 1))%"></div>
+        </div>
+
+        <!-- Current Question -->
+        @if (currentQuestion != null)
+        {
+            <div class="question-container">
+                <div class="question-header">
+                    <div class="question-number">Question @(currentQuestionIndex + 1)</div>
+                    <div class="question-type-badge">@currentQuestion.Type</div>
+                </div>
+
+                <div class="question-text">@currentQuestion.QuestionText</div>
+
+                <div class="options-container">
+                    @if (currentQuestion.Type == "Multiple Choice")
+                    {
+                        @if (currentQuestion.Options != null)
+                        {
+                            @for (int i = 0; i < currentQuestion.Options.Count; i++)
+                            {
+                                var optionIndex = i;
+                                var option = currentQuestion.Options[i];
+                                <div class="option-item @(selectedAnswers.ContainsKey(currentQuestion.Id) && selectedAnswers[currentQuestion.Id] == optionIndex.ToString() ? "selected" : "")"
+                                     @onclick="@(() => SelectAnswer(optionIndex))">
+                                    <div class="option-radio @(selectedAnswers.ContainsKey(currentQuestion.Id) && selectedAnswers[currentQuestion.Id] == optionIndex.ToString() ? "selected" : "")"></div>
+                                    <div class="option-text">@option</div>
+                                </div>
+                            }
+                        }
+                    }
+                    else if (currentQuestion.Type == "True or False")
+                    {
+                        <div class="option-item @(selectedAnswers.ContainsKey(currentQuestion.Id) && selectedAnswers[currentQuestion.Id].ToLower() == "true" ? "selected" : "")"
+                             @onclick="@(() => SelectAnswer("true"))">
+                            <div class="option-radio @(selectedAnswers.ContainsKey(currentQuestion.Id) && selectedAnswers[currentQuestion.Id].ToLower() == "true" ? "selected" : "")"></div>
+                            <div class="option-text">True</div>
+                        </div>
+                        <div class="option-item @(selectedAnswers.ContainsKey(currentQuestion.Id) && selectedAnswers[currentQuestion.Id].ToLower() == "false" ? "selected" : "")"
+                             @onclick="@(() => SelectAnswer("false"))">
+                            <div class="option-radio @(selectedAnswers.ContainsKey(currentQuestion.Id) && selectedAnswers[currentQuestion.Id].ToLower() == "false" ? "selected" : "")"></div>
+                            <div class="option-text">False</div>
+                        </div>
+                    }
+                    else if (currentQuestion.Type == "Identification")
+                    {
+                        var answerValue = selectedAnswers.ContainsKey(currentQuestion.Id) ? selectedAnswers[currentQuestion.Id] : "";
+                        <input type="text" 
+                               class="text-input" 
+                               placeholder="Enter your answer here..."
+                               value="@answerValue"
+                               @oninput="@((ChangeEventArgs e) => SelectAnswer(e.Value?.ToString() ?? ""))" />
+                    }
+                </div>
+
+                <!-- Question Timer Display - Below the question options -->
+                @if (currentQuestion?.TimeLimit.HasValue == true && questionTimer > 0)
+                {
+                    <div class="timer-display question-timer-display @(questionTimer <= 10 ? "timer-warning" : "")" style="margin-top: 20px; padding: 15px; border-radius: 25px; text-align: center; box-shadow: 0 4px 15px rgba(72, 165, 131, 0.3);">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                            <span style="font-size: 1.2rem;">⏱️</span>
+                            <div style="font-weight: 700; color: white; font-size: 1.1rem;">
+                                Question Time: @FormatTime(questionTimer)
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Navigation Buttons -->
+                <div class="navigation-buttons">
+                    <button class="btn btn-primary" 
+                            @onclick="NextQuestion" 
+                            disabled="@(currentQuestionIndex >= (quiz.Questions?.Count ?? 0) - 1)">
+                        Next →
+                    </button>
+                </div>
+            </div>
+        }
+
+        <!-- Submit Section -->
+        <div class="submit-section">
+            <p style="margin-bottom: 20px; color: #555; font-size: 1.1rem;">
+                You have answered @answeredCount out of @(quiz.Questions?.Count ?? 0) questions
+            </p>
+            <button class="submit-btn" @onclick="SubmitQuiz" disabled="@submitting">
+                @(submitting ? "Submitting..." : "Submit Quiz")
+            </button>
+        </div>
+    </div>
+}
+
+@implements IDisposable
+
+@code {
+    [Parameter] public int quizId { get; set; }
+    [Parameter] public string? quizCode { get; set; }
+
+    private Quiz? quiz;
+    private bool loading = true;
+    private bool submitting = false;
+    private int currentQuestionIndex = 0;
+    private Question? currentQuestion;
+    private Dictionary<int, string> selectedAnswers = new();
+    private int quizTimer = 0; // Total quiz timer in seconds
+    private int questionTimer = 0; // Per-question timer in seconds
+    private System.Threading.Timer? quizTimerObj;
+    private System.Threading.Timer? questionTimerObj;
+
+    protected override void OnInitialized()
+    {
+        LoadQuiz();
+    }
+
+    private void LoadQuiz()
+    {
+        try
+        {
+            loading = true;
+            
+            // Check if student has already taken this quiz
+            var studentId = UserSessionService.CurrentUserId ?? 0;
+            int targetQuizId = 0;
+            
+            // If quizCode is provided, use it; otherwise use quizId
+            if (!string.IsNullOrEmpty(quizCode))
+            {
+                Console.WriteLine($"Loading quiz with code '{quizCode}' for student...");
+                quiz = QuizService.GetQuizByCodeForStudent(quizCode);
+                if (quiz != null)
+                {
+                    targetQuizId = quiz.Id;
+                }
+            }
+            else if (quizId > 0)
+            {
+                Console.WriteLine($"Loading quiz {quizId} for student...");
+                quiz = QuizService.GetQuizByIdForStudent(quizId);
+                targetQuizId = quizId;
+            }
+            else
+            {
+                Console.WriteLine("No quiz ID or code provided");
+                loading = false;
+                return;
+            }
+            
+            // Check if student has already taken this quiz
+            if (targetQuizId > 0 && studentId > 0)
+            {
+                if (QuizAttemptService.HasStudentTakenQuiz(targetQuizId, studentId))
+                {
+                    Console.WriteLine($"Student {studentId} has already taken quiz {targetQuizId}. Redirecting to results...");
+                    // Redirect to results page
+                    var attempt = QuizAttemptService.GetStudentQuizAttempt(targetQuizId, studentId);
+                    if (attempt != null)
+                    {
+                        Navigation.NavigateTo($"/quiz-results/{attempt.Id}?quizId={targetQuizId}");
+                    }
+                    else
+                    {
+                        Navigation.NavigateTo($"/view-quiz-history");
+                    }
+                    loading = false;
+                    return;
+                }
+            }
+            
+            if (quiz != null)
+            {
+                Console.WriteLine($"Quiz loaded: {quiz.Title} with {quiz.Questions?.Count ?? 0} questions");
+                
+                // Initialize current question
+                if (quiz.Questions != null && quiz.Questions.Count > 0)
+                {
+                    currentQuestion = quiz.Questions[0];
+                    
+                    // Start quiz timer if there's a time limit
+                    if (quiz.TotalTimeLimit > 0)
+                    {
+                        quizTimer = quiz.TotalTimeLimit * 60; // Convert minutes to seconds
+                        StartQuizTimer();
+                    }
+                    
+                    // Start question timer if there's a per-question time limit
+                    if (currentQuestion.TimeLimit.HasValue)
+                    {
+                        questionTimer = currentQuestion.TimeLimit.Value;
+                        StartQuestionTimer();
+                    }
+                }
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(quizCode))
+                {
+                    Console.WriteLine($"Quiz with code '{quizCode}' not found");
+                }
+                else
+                {
+                    Console.WriteLine($"Quiz {quizId} not found");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading quiz: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void StartQuizTimer()
+    {
+        quizTimerObj = new System.Threading.Timer(_ =>
+        {
+            quizTimer--;
+            if (quizTimer <= 0)
+            {
+                quizTimerObj?.Dispose();
+                // Auto-submit when time runs out
+                _ = InvokeAsync(async () =>
+                {
+                    await SubmitQuiz();
+                });
+            }
+            else
+            {
+                InvokeAsync(StateHasChanged);
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private void StartQuestionTimer()
+    {
+        questionTimerObj?.Dispose();
+        if (currentQuestion?.TimeLimit.HasValue == true)
+        {
+            questionTimer = currentQuestion.TimeLimit.Value;
+            questionTimerObj = new System.Threading.Timer(_ =>
+            {
+                questionTimer--;
+                if (questionTimer <= 0)
+                {
+                    questionTimerObj?.Dispose();
+                    // Auto-advance to next question, or submit if it's the last question
+                    InvokeAsync(() =>
+                    {
+                        if (quiz?.Questions != null && currentQuestionIndex < quiz.Questions.Count - 1)
+                        {
+                            NextQuestion();
+                        }
+                        // If it's the last question, just let the timer expire (don't auto-submit from question timer)
+                    });
+                }
+                else
+                {
+                    InvokeAsync(StateHasChanged);
+                }
+            }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        }
+    }
+
+    private void SelectAnswer(object answer)
+    {
+        if (currentQuestion != null)
+        {
+            // Convert answer to string, handling boolean values for True/False questions
+            string answerString;
+            if (answer is bool boolValue)
+            {
+                answerString = boolValue ? "true" : "false";
+            }
+            else
+            {
+                answerString = answer?.ToString() ?? "";
+            }
+            
+            selectedAnswers[currentQuestion.Id] = answerString;
+            Console.WriteLine($"Selected answer for question {currentQuestion.Id}: {answerString}");
+            StateHasChanged();
+        }
+    }
+
+    private void NextQuestion()
+    {
+        if (quiz?.Questions != null && currentQuestionIndex < quiz.Questions.Count - 1)
+        {
+            currentQuestionIndex++;
+            currentQuestion = quiz.Questions[currentQuestionIndex];
+            
+            // Restart question timer if needed
+            if (currentQuestion.TimeLimit.HasValue)
+            {
+                StartQuestionTimer();
+            }
+            else
+            {
+                questionTimerObj?.Dispose();
+                questionTimer = 0;
+            }
+            
+            StateHasChanged();
+        }
+    }
+
+
+    private int answeredCount => selectedAnswers.Count;
+
+    private string FormatTime(int seconds)
+    {
+        int minutes = seconds / 60;
+        int secs = seconds % 60;
+        return $"{minutes:D2}:{secs:D2}";
+    }
+
+    private async Task SubmitQuiz()
+    {
+        if (submitting) return;
+        
+        submitting = true;
+        
+        try
+        {
+            // Stop timers
+            quizTimerObj?.Dispose();
+            questionTimerObj?.Dispose();
+            
+            // Calculate score
+            int correctAnswers = 0;
+            int totalQuestions = quiz?.Questions?.Count ?? 0;
+            
+            if (quiz?.Questions != null)
+            {
+                foreach (var question in quiz.Questions)
+                {
+                    if (selectedAnswers.ContainsKey(question.Id))
+                    {
+                        var studentAnswer = selectedAnswers[question.Id];
+                        
+                        if (question.Type == "Multiple Choice")
+                        {
+                            if (int.TryParse(studentAnswer, out int selectedIndex) && selectedIndex == question.CorrectAnswerIndex)
+                            {
+                                correctAnswers++;
+                            }
+                        }
+                        else if (question.Type == "True or False" || question.Type == "Identification")
+                        {
+                            if (studentAnswer.Equals(question.CorrectAnswer, StringComparison.OrdinalIgnoreCase))
+                            {
+                                correctAnswers++;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            double score = totalQuestions > 0 ? (correctAnswers * 100.0 / totalQuestions) : 0;
+            
+            Console.WriteLine($"Quiz submitted! Score: {correctAnswers}/{totalQuestions} ({score:F1}%)");
+            
+            // Save quiz attempt to database
+            try
+            {
+                var studentId = UserSessionService.CurrentUserId ?? 0;
+                var studentName = UserSessionService.CurrentUserName ?? "Unknown";
+                
+                Console.WriteLine($"SubmitQuiz: studentId={studentId}, studentName={studentName}, quizId={quiz?.Id}");
+                
+                if (studentId > 0 && quiz != null)
+                {
+                    Console.WriteLine($"SubmitQuiz: Calling SaveQuizAttempt...");
+                    var attemptId = QuizAttemptService.SaveQuizAttempt(
+                        quiz.Id, 
+                        studentId, 
+                        studentName, 
+                        selectedAnswers, 
+                        quiz
+                    );
+                    
+                    Console.WriteLine($"SubmitQuiz: Quiz attempt saved with ID: {attemptId}");
+                    
+                    // Navigate to results page
+                    Navigation.NavigateTo($"/quiz-results/{attemptId}?quizId={quiz.Id}");
+                    return;
+                }
+                else
+                {
+                    Console.WriteLine($"SubmitQuiz: Cannot save - studentId={studentId}, quiz={(quiz != null ? "exists" : "null")}");
+                    await JSRuntime.InvokeVoidAsync("alert", 
+                        $"Cannot save quiz attempt. StudentId={studentId}, Quiz={(quiz != null ? "exists" : "null")}");
+                }
+            }
+            catch (Exception saveEx)
+            {
+                Console.WriteLine($"SubmitQuiz: Error saving quiz attempt: {saveEx.Message}");
+                Console.WriteLine($"SubmitQuiz: Stack trace: {saveEx.StackTrace}");
+                if (saveEx.InnerException != null)
+                {
+                    Console.WriteLine($"SubmitQuiz: Inner exception: {saveEx.InnerException.Message}");
+                }
+                await JSRuntime.InvokeVoidAsync("alert", 
+                    $"Error saving quiz attempt: {saveEx.Message}\n\nPlease check the console for details.");
+            }
+            
+            // If save failed or student not logged in, show alert and navigate
+            await JSRuntime.InvokeVoidAsync("alert", 
+                $"Quiz Submitted!\n\nScore: {correctAnswers}/{totalQuestions} ({score:F1}%)");
+            
+            Navigation.NavigateTo("/take-quiz");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error submitting quiz: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error submitting quiz: {ex.Message}");
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        quizTimerObj?.Dispose();
+        questionTimerObj?.Dispose();
+        Navigation.NavigateTo("/take-quiz");
+    }
+
+    public void Dispose()
+    {
+        quizTimerObj?.Dispose();
+        questionTimerObj?.Dispose();
+    }
+}
+
